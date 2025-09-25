@@ -76,12 +76,19 @@ class Program
             var result = await orchestrator.GenerateBlogPostAsync(request);
 
             // Display results
-            Console.WriteLine($"TITLE: {result.Title}");
-            Console.WriteLine($"META DESCRIPTION: {result.MetaDescription}");
-            Console.WriteLine($"TAGS: {string.Join(", ", result.Tags)}");
-            Console.WriteLine($"SUMMARY: {result.Summary}");
-            Console.WriteLine(new string('=', 50));
-            Console.WriteLine("CONTENT:");
+            // Display results as Jekyll blog post format
+            Console.WriteLine("---");
+            Console.WriteLine("layout: post");
+            Console.WriteLine($"title: {result.Title}");
+            Console.WriteLine("image: img/banner.jpg");
+            Console.WriteLine("author: Dushyant");
+            Console.WriteLine($"date: {DateTime.Now:yyyy-MM-ddTHH:mm:ss.fffZ}");
+            Console.WriteLine($"tags: [{string.Join(", ", result.Tags.Select(tag => $"\"{tag}\""))}]");
+            Console.WriteLine("draft: false");
+            Console.WriteLine("---");
+            Console.WriteLine();
+            Console.WriteLine($"## {result.Summary}");
+            Console.WriteLine();
             Console.WriteLine(result.Content);
         }
         catch (Exception ex)
