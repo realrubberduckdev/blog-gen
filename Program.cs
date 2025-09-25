@@ -213,21 +213,21 @@ public class BlogPostOrchestrator
             // Step 1: Research and create outline
             _logger.LogInformation("Step 1: Researching topic and creating outline...");
             var outline = await _researchAgent.ResearchAndOutlineAsync(
-                request.Topic, 
-                request.Description, 
+                request.Topic,
+                request.Description,
                 request.TargetAudience);
 
             // Step 2: Write initial content
             _logger.LogInformation("Step 2: Writing blog post content...");
             var initialContent = await _writerAgent.WriteContentAsync(
-                outline, 
-                request.Tone, 
+                outline,
+                request.Tone,
                 request.WordCount);
 
             // Step 3: Edit and polish content
             _logger.LogInformation("Step 3: Editing and polishing content...");
             var editedContent = await _editorAgent.ReviewAndEditAsync(initialContent);
-            
+
             // Extract the edited content (remove editor notes)
             var contentParts = editedContent.Split(new[] { "EDITOR NOTES:" }, StringSplitOptions.None);
             var finalContent = contentParts[0].Replace("EDITED CONTENT:", "").Trim();
@@ -270,10 +270,10 @@ public class BlogPostOrchestrator
             }
 
             var seoData = JsonSerializer.Deserialize<JsonElement>(seoJson);
-            
+
             return (
                 Title: seoData.TryGetProperty("title", out var title) ? title.GetString() ?? "" : "",
-                Tags: seoData.TryGetProperty("tags", out var tags) ? 
+                Tags: seoData.TryGetProperty("tags", out var tags) ?
                       tags.EnumerateArray().Select(t => t.GetString() ?? "").ToList() : new List<string>(),
                 MetaDescription: seoData.TryGetProperty("metaDescription", out var meta) ? meta.GetString() ?? "" : "",
                 Summary: seoData.TryGetProperty("summary", out var summary) ? summary.GetString() ?? "" : ""
@@ -296,7 +296,7 @@ class Program
         var configuration = new ConfigurationBuilder()
             .AddUserSecrets<Program>()
             .Build();
-        
+
         // Get OpenAI API key from user secrets
         var openAiApiKey = configuration["OpenAI:ApiKey"];
         if (string.IsNullOrEmpty(openAiApiKey))
@@ -306,17 +306,18 @@ class Program
 
         // Configure services
         var services = new ServiceCollection();
-        
+
         // Add logging
         services.AddLogging(builder => builder.AddConsole());
 
         // Configure Semantic Kernel
         var builder = Kernel.CreateBuilder();
-        
-        // Use OpenAI API key from user secrets
+
+        var endpoint = "https://dp-openai1.openai.azure.com/";
+        var deploymentName = "gpt-4o-mini";
         builder.AddAzureOpenAIChatCompletion(
-            "gpt-4o-mini",
-            "https://dp-openai1.openai.azure.com/openai/deployments/gpt-4o-mini/chat/completions?api-version=2025-01-01-preview",
+            deploymentName,
+            endpoint,
             openAiApiKey);
 
         var kernel = builder.Build();
