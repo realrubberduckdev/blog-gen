@@ -75,21 +75,31 @@ class Program
         {
             var result = await orchestrator.GenerateBlogPostAsync(request);
 
-            // Display results
-            // Display results as Jekyll blog post format
-            Console.WriteLine("---");
-            Console.WriteLine("layout: post");
-            Console.WriteLine($"title: {result.Title}");
-            Console.WriteLine("image: img/banner.jpg");
-            Console.WriteLine("author: Dushyant");
-            Console.WriteLine($"date: {DateTime.Now:yyyy-MM-ddTHH:mm:ss.fffZ}");
-            Console.WriteLine($"tags: [{string.Join(", ", result.Tags.Select(tag => $"\"{tag}\""))}]");
-            Console.WriteLine("draft: false");
-            Console.WriteLine("---");
-            Console.WriteLine();
-            Console.WriteLine($"## {result.Summary}");
-            Console.WriteLine();
-            Console.WriteLine(result.Content);
+            // Generate filename from title (safe for filesystem)
+            var fileName = $"{DateTime.Now:yyyy-MM-dd}-{result.Title.Replace(" ", "-").Replace(":", "").Replace("?", "").Replace("/", "-").Replace("\\", "-").ToLower()}.md";
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), fileName);
+
+            // Create markdown content
+            var markdownContent = $"""
+            ---
+            layout: post
+            title: {result.Title}
+            image: img/banner.jpg
+            author: Dushyant
+            date: {DateTime.Now:yyyy-MM-ddTHH:mm:ss.fffZ}
+            tags: [{string.Join(", ", result.Tags.Select(tag => $"\"{tag}\""))}]
+            draft: false
+            ---
+
+            ## {result.Summary}
+
+            {result.Content}
+            """;
+
+            // Write to file
+            await File.WriteAllTextAsync(filePath, markdownContent);
+            Console.WriteLine($"Blog post generated successfully!");
+            Console.WriteLine($"File saved as: {fileName}");
         }
         catch (Exception ex)
         {
