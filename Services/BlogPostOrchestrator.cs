@@ -14,6 +14,7 @@ public class BlogPostOrchestrator
     private readonly ContentWriterAgent _writerAgent;
     private readonly SEOAgent _seoAgent;
     private readonly EditorAgent _editorAgent;
+    private readonly MarkdownLinterAgent _markdownLinterAgent;
     private readonly ILogger<BlogPostOrchestrator> _logger;
 
     public BlogPostOrchestrator(
@@ -21,17 +22,19 @@ public class BlogPostOrchestrator
         ContentWriterAgent writerAgent,
         SEOAgent seoAgent,
         EditorAgent editorAgent,
+        MarkdownLinterAgent markdownLinterAgent,
         ILogger<BlogPostOrchestrator> logger)
     {
         _researchAgent = researchAgent;
         _writerAgent = writerAgent;
         _seoAgent = seoAgent;
         _editorAgent = editorAgent;
+        _markdownLinterAgent = markdownLinterAgent;
         _logger = logger;
     }
 
     /// <summary>
-    /// Generate a complete blog post using the 4-stage pipeline
+    /// Generate a complete blog post using the 5-stage pipeline
     /// </summary>
     /// <param name="request">Blog post generation request parameters</param>
     /// <returns>Complete blog post result with content and metadata</returns>
@@ -61,10 +64,14 @@ public class BlogPostOrchestrator
 
             // Extract the edited content (remove editor notes)
             var contentParts = editedContent.Split(new[] { "EDITOR NOTES:" }, StringSplitOptions.None);
-            var finalContent = contentParts[0].Replace("EDITED CONTENT:", "").Trim();
+            var processedContent = contentParts[0].Replace("EDITED CONTENT:", "").Trim();
 
-            // Step 4: SEO optimization
-            _logger.LogInformation("Step 4: Optimizing for SEO...");
+            // Step 4: Markdown linting and formatting
+            _logger.LogInformation("Step 4: Linting and formatting markdown...");
+            var finalContent = await _markdownLinterAgent.LintAndFixMarkdownAsync(processedContent);
+
+            // Step 5: SEO optimization
+            _logger.LogInformation("Step 5: Optimizing for SEO...");
             var seoData = await _seoAgent.OptimizeForSEOAsync(finalContent, request.Topic);
 
             // Parse SEO JSON response

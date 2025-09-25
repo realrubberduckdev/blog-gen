@@ -51,6 +51,7 @@ class Program
         services.AddTransient<ContentWriterAgent>();
         services.AddTransient<SEOAgent>();
         services.AddTransient<EditorAgent>();
+        services.AddTransient<MarkdownLinterAgent>();
         services.AddTransient<BlogPostOrchestrator>();
 
         var serviceProvider = services.BuildServiceProvider();
