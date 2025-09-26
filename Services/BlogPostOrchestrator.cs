@@ -31,36 +31,44 @@ public class BlogPostOrchestrator
         _editorAgent = editorAgent;
         _markdownLinterAgent = markdownLinterAgent;
         _logger = logger;
-    }
-
-    /// <summary>
-    /// Generate a complete blog post using the 5-stage pipeline
-    /// </summary>
-    /// <param name="request">Blog post generation request parameters</param>
-    /// <returns>Complete blog post result with content and metadata</returns>
+    }    /// <summary>
+         /// Generate a complete blog post using the 5-stage pipeline
+         /// </summary>
+         /// <param name="request">Blog post generation request parameters</param>
+         /// <returns>Complete blog post result with content and metadata</returns>
     public async Task<BlogPostResult> GenerateBlogPostAsync(BlogPostRequest request)
     {
+        var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
         _logger.LogInformation("Starting blog post generation for topic: {Topic}", request.Topic);
 
         try
         {
             // Step 1: Research and create outline
             _logger.LogInformation("Step 1: Researching topic and creating outline...");
+            var stepStopwatch = System.Diagnostics.Stopwatch.StartNew();
             var outline = await _researchAgent.ResearchAndOutlineAsync(
                 request.Topic,
                 request.Description,
                 request.TargetAudience);
+            stepStopwatch.Stop();
+            _logger.LogInformation("Step 1 completed in {ElapsedTime}ms", stepStopwatch.ElapsedMilliseconds);
 
             // Step 2: Write initial content
             _logger.LogInformation("Step 2: Writing blog post content...");
+            stepStopwatch.Restart();
             var initialContent = await _writerAgent.WriteContentAsync(
                 outline,
                 request.Tone,
                 request.WordCount);
+            stepStopwatch.Stop();
+            _logger.LogInformation("Step 2 completed in {ElapsedTime}ms", stepStopwatch.ElapsedMilliseconds);
 
             // Step 3: Edit and polish content
             _logger.LogInformation("Step 3: Editing and polishing content...");
+            stepStopwatch.Restart();
             var editedContent = await _editorAgent.ReviewAndEditAsync(initialContent);
+            stepStopwatch.Stop();
+            _logger.LogInformation("Step 3 completed in {ElapsedTime}ms", stepStopwatch.ElapsedMilliseconds);
 
             // Extract the edited content (remove editor notes)
             var contentParts = editedContent.Split(new[] { "EDITOR NOTES:" }, StringSplitOptions.None);
@@ -68,16 +76,25 @@ public class BlogPostOrchestrator
 
             // Step 4: Markdown linting and formatting
             _logger.LogInformation("Step 4: Linting and formatting markdown...");
+            stepStopwatch.Restart();
             var finalContent = await _markdownLinterAgent.LintAndFixMarkdownAsync(processedContent);
+            stepStopwatch.Stop();
+            _logger.LogInformation("Step 4 completed in {ElapsedTime}ms", stepStopwatch.ElapsedMilliseconds);
 
             // Step 5: SEO optimization
             _logger.LogInformation("Step 5: Optimizing for SEO...");
+            stepStopwatch.Restart();
             var seoData = await _seoAgent.OptimizeForSEOAsync(finalContent, request.Topic);
+            stepStopwatch.Stop();
+            _logger.LogInformation("Step 5 completed in {ElapsedTime}ms", stepStopwatch.ElapsedMilliseconds);
 
             // Parse SEO JSON response
             var seoResult = ParseSEOResponse(seoData);
 
-            _logger.LogInformation("Blog post generation completed successfully!");
+            totalStopwatch.Stop();
+            _logger.LogInformation("Blog post generation completed successfully! Total time: {TotalTime}ms ({TotalTimeSeconds:F2} seconds)",
+                totalStopwatch.ElapsedMilliseconds,
+                totalStopwatch.ElapsedMilliseconds / 1000.0);
 
             return new BlogPostResult
             {
@@ -90,7 +107,8 @@ public class BlogPostOrchestrator
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating blog post");
+            totalStopwatch.Stop();
+            _logger.LogError(ex, "Error generating blog post after {ElapsedTime}ms", totalStopwatch.ElapsedMilliseconds);
             throw;
         }
     }
