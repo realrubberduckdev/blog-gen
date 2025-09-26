@@ -15,17 +15,11 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        // Build configuration
         var configuration = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .AddUserSecrets<Program>()
-            .Build();
-
-        // Get OpenAI API key from user secrets
-        var openAiApiKey = configuration["OpenAI:ApiKey"];
-        if (string.IsNullOrEmpty(openAiApiKey))
-        {
-            throw new InvalidOperationException("OpenAI API key not found. Please set it using: dotnet user-secrets set \"OpenAI:ApiKey\" \"your-api-key-here\"");
-        }
+            .Build();        // Get configuration settings and configure Semantic Kernel
+        var useLocal = configuration.GetValue<bool>("LocalModel:UseLocal");
 
         // Configure services
         var services = new ServiceCollection();
@@ -36,12 +30,59 @@ class Program
         // Configure Semantic Kernel
         var builder = Kernel.CreateBuilder();
 
-        var endpoint = "https://dp-openai1.openai.azure.com/";
-        var deploymentName = "gpt-4o-mini";
-        builder.AddAzureOpenAIChatCompletion(
-            deploymentName,
-            endpoint,
-            openAiApiKey);
+        if (useLocal)
+        {
+            // Configure for local model
+            var endpoint = configuration["LocalModel:Endpoint"];
+            var modelName = configuration["LocalModel:ModelName"];
+            var apiKey = configuration["LocalModel:ApiKey"];
+
+            if (string.IsNullOrEmpty(endpoint) || string.IsNullOrEmpty(modelName) || string.IsNullOrEmpty(apiKey))
+            {
+                Console.WriteLine("Error: LocalModel configuration is incomplete. Please check your appsettings.json file.");
+                Console.WriteLine($"Endpoint: {(string.IsNullOrEmpty(endpoint) ? "missing" : "present")}");
+                Console.WriteLine($"ModelName: {(string.IsNullOrEmpty(modelName) ? "missing" : "present")}");
+                Console.WriteLine($"ApiKey: {(string.IsNullOrEmpty(apiKey) ? "missing" : "present")}");
+                Environment.Exit(1);
+            }
+
+            Console.WriteLine($"Configuring for local model at: {endpoint}");
+            Console.WriteLine($"Model: {modelName}");
+
+            // Create HttpClient with longer timeout
+            var httpClient = new HttpClient
+            {
+                // Increase timeout as local runs take long
+                Timeout = TimeSpan.FromMinutes(10)
+            };
+
+            builder.AddOpenAIChatCompletion(
+                modelId: modelName,
+                apiKey: apiKey,
+                endpoint: new Uri(endpoint),
+                httpClient: httpClient);
+        }
+        else
+        {
+            // Configure for Azure OpenAI
+            var endpoint = configuration["AzureOpenAI:Endpoint"];
+            var deploymentName = configuration["AzureOpenAI:DeploymentName"];
+            var apiKey = configuration["AzureOpenAI:ApiKey"];
+
+            if (string.IsNullOrEmpty(endpoint) || string.IsNullOrEmpty(deploymentName) || string.IsNullOrEmpty(apiKey))
+            {
+                Console.WriteLine("Error: Azure OpenAI configuration is incomplete. Please check your appsettings.json file and user secrets.");
+                Console.WriteLine($"Endpoint: {(string.IsNullOrEmpty(endpoint) ? "missing" : "present")}");
+                Console.WriteLine($"DeploymentName: {(string.IsNullOrEmpty(deploymentName) ? "missing" : "present")}");
+                Console.WriteLine($"ApiKey: {(string.IsNullOrEmpty(apiKey) ? "missing" : "present")}");
+                Environment.Exit(1);
+            }
+
+            builder.AddAzureOpenAIChatCompletion(
+                deploymentName,
+                endpoint,
+                apiKey);
+        }
 
         var kernel = builder.Build();
 

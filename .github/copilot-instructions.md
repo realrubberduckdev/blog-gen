@@ -21,9 +21,10 @@ BlogPostRequest (input) → BlogPostOrchestrator → BlogPostResult (output)
 ```
 
 ### Configuration & Secrets
-- Uses **Azure OpenAI** (not regular OpenAI) with specific endpoint: `https://dp-openai1.openai.azure.com/`
-- API keys stored in user secrets: `dotnet user-secrets set "OpenAI:ApiKey" "your-key"`
-- Deployment name is hardcoded as `"gpt-4o-mini"`
+- Uses **Azure OpenAI** (not regular OpenAI) with configurable endpoint from `appsettings.json`
+- API keys stored in user secrets: `dotnet user-secrets set "AzureOpenAI:ApiKey" "your-key"`
+- Configuration supports both Azure OpenAI and local model deployment via Docker
+- Settings managed through `appsettings.json` and environment-specific overrides
 
 ## Development Workflows
 
@@ -35,8 +36,40 @@ dotnet run
 
 ### Setting Up API Keys
 ```bash
+# For Azure OpenAI (recommended for production)
+dotnet user-secrets set "AzureOpenAI:ApiKey" "your-azure-openai-key"
+
+# Alternative: Legacy format (still supported for backward compatibility)
 dotnet user-secrets set "OpenAI:ApiKey" "your-azure-openai-key"
 ```
+
+### Configuration Options
+The application now supports flexible configuration through `appsettings.json`:
+
+**Azure OpenAI Configuration:**
+```json
+{
+  "AzureOpenAI": {
+    "Endpoint": "https://dp-openai1.openai.azure.com/",
+    "DeploymentName": "gpt-4o-mini",
+    "ApiKey": ""
+  }
+}
+```
+
+**Local Model Configuration (Docker):**
+```json
+{
+  "LocalModel": {
+    "Endpoint": "http://localhost:11434",
+    "ModelName": "llama3.1:8b",
+    "ApiKey": "",
+    "UseLocal": true
+  }
+}
+```
+
+Set `UseLocal: true` in `appsettings.Development.json` to use local models during development.
 
 ### Dependencies
 - Target Framework: **.NET 9.0**
@@ -79,6 +112,7 @@ public class SomeAgent
 - Must use `AddAzureOpenAIChatCompletion()` method (not regular OpenAI)
 - Endpoint and deployment name are environment-specific
 - API key retrieved from user secrets configuration
+- Configuration supports both Azure OpenAI and local model deployment via Docker
 
 ### Service Registration
 All agents registered as transient services in DI container. The kernel instance is registered as singleton and shared across all agents.
