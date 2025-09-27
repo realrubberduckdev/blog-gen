@@ -26,12 +26,20 @@ BlogPostRequest (input) → BlogPostOrchestrator → BlogPostResult (output)
 - Configuration supports both Azure OpenAI and local model deployment via Docker
 - Settings managed through `appsettings.json` and environment-specific overrides
 
+### Input Methods
+- **Primary**: JSON files for complex blog requests with verbose descriptions
+- **Fallback**: Command line arguments, configuration defaults, or interactive input
+- **Auto-discovery**: Searches for `blog-request.json`, `request.json`, `sample-request.json`
+- **Validation**: JSON schema validation with meaningful error messages
+
 ## Development Workflows
 
 ### Building and Running
 ```bash
 dotnet build
-dotnet run
+dotnet run                    # Interactive mode or auto-discovery
+dotnet run sample-request.json    # JSON file input (recommended)
+dotnet run --topic "My Topic" --description "Description"  # Command line
 ```
 
 ### Setting Up API Keys
