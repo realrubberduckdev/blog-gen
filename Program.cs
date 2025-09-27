@@ -126,8 +126,9 @@ class Program
             tags: [{string.Join(", ", result.Tags.Select(tag => $"\"{tag}\""))}]
             draft: false
             ---
-
-            ## {result.Summary}
+            <div className="seo-hidden">
+            {result.MetaDescription}
+            </div>
 
             {result.Content}
             """;

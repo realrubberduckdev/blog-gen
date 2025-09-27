@@ -30,10 +30,10 @@ public class ContentWriterAgent
     {
         var prompt = $"""
         You are an expert content writer. Using the following research outline, write a compelling blog post:
-        
+
         OUTLINE:
         {outline}
-        
+
         REQUIREMENTS:
         - Tone: {tone}
         - Target word count: approximately {wordCount} words
@@ -42,7 +42,8 @@ public class ContentWriterAgent
         - Add relevant examples and explanations
         - Include a strong conclusion with call-to-action
         - Write in markdown format
-        
+        - Do NOT wrap the output in markdown code blocks (```markdown or ```)
+
         Focus on creating valuable, engaging content that provides real insights to readers.
         """;
 

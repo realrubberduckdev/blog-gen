@@ -47,9 +47,9 @@ public class MarkdownLinterAgent
         - Make sure table formatting is consistent and aligned
         - Verify that blockquotes use proper > formatting
         - Check that horizontal rules use consistent syntax (---)
-
-        Return ONLY the corrected markdown content. Do not include explanations or notes about what was changed.
-        The output should be clean, properly formatted markdown that passes standard linting rules.
+        - Return ONLY the corrected markdown content. Do not include explanations or notes about what was changed.
+        - Do NOT wrap the output in markdown code blocks (```markdown or ```).
+        - The output should be clean, properly formatted markdown that passes standard linting rules.
         """;
 
         var result = await _kernel.InvokePromptAsync(prompt);
