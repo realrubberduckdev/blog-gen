@@ -1,0 +1,134 @@
+name: Blog Generator with Local AI
+
+on:
+    workflow_dispatch:
+        inputs:
+            blog_request_json:
+                description: "Blog request JSON content"
+                required: true
+                type: string
+                default: |
+                    {
+                      "Topic": "Getting Started with Local AI Models",
+                      "Description": "A comprehensive guide to setting up and using local AI models for content generation",
+                      "TargetAudience": "Developers",
+                      "WordCount": 800,
+                      "Tone": "Professional"
+                    }
+
+jobs:
+    generate-blog-post:
+        runs-on: windows-latest
+
+        steps:
+            - name: Checkout Code
+              uses: actions/checkout@v4
+
+            - name: Setup .NET 9
+              uses: actions/setup-dotnet@v4
+              with:
+                  dotnet-version: "9.0.x"
+
+            - name: Create and Validate JSON File
+              shell: pwsh
+              run: |
+                  Write-Host "📝 Creating blog-request.json from input..."
+                  '${{ inputs.blog_request_json }}' | Out-File -FilePath blog-request.json -Encoding UTF8
+
+                  Write-Host "✅ Validating JSON format..."
+                  try {
+                    $json = Get-Content blog-request.json -Raw | ConvertFrom-Json
+                    Write-Host "✅ JSON syntax is valid"
+                  }
+                  catch {
+                    Write-Host "❌ ERROR: Invalid JSON format: $($_.Exception.Message)"
+                    Write-Host "Input received:"
+                    Write-Host '${{ inputs.blog_request_json }}'
+                    exit 1
+                  }
+
+                  Write-Host "✅ Validating required fields..."
+                  $requiredFields = @("Topic", "Description", "TargetAudience", "WordCount", "Tone")
+
+                  foreach ($field in $requiredFields) {
+                    if (-not $json.PSObject.Properties.Name -contains $field) {
+                      Write-Host "❌ ERROR: Missing required field '$field'"
+                      exit 1
+                    }
+                  }
+
+                  Write-Host "✅ JSON validation successful!"
+                  Write-Host "📄 Blog request content:"
+                  Get-Content blog-request.json
+
+            - name: Pull AI Model
+              shell: pwsh
+              run: |
+                  Write-Host "📦 Pulling Docker model: ai/gemma3"
+
+                  # Pull the model with error handling
+                  try {
+                    docker pull ai/gemma3
+                    Write-Host "✅ Successfully pulled ai/gemma3"
+                  }
+                  catch {
+                    Write-Host "❌ Failed to pull ai/gemma3"
+                    Write-Host "Available images:"
+                    docker images
+                    exit 1
+                  }
+
+                  Write-Host "🔍 Verifying model is available:"
+                  $gemmaImages = docker images --format "table {{.Repository}}:{{.Tag}}" | Select-String "gemma3"
+                  if (-not $gemmaImages) {
+                    Write-Host "❌ Model ai/gemma3 not found in local images"
+                    exit 1
+                  }
+                  Write-Host "✅ Model verification successful"
+
+            - name: Run Blog Generator
+              shell: pwsh
+              run: |
+                  Write-Host "✍️ Running blog generator with local AI model..."
+
+                  # Run with local model configuration
+                  dotnet run --project blog-gen.csproj --configuration Release --LocalModel:UseLocal=true blog-request.json
+
+                  if ($LASTEXITCODE -ne 0) {
+                    Write-Host "❌ Blog generation failed"
+                    exit 1
+                  }
+
+                  Write-Host "✅ Blog generation completed"
+
+            - name: Upload Generated Content
+              uses: actions/upload-artifact@v4
+              with:
+                  name: generated-blog-content
+                  path: |
+                      *.md
+                      blog-request.json
+                  retention-days: 7
+
+            - name: Cleanup Docker
+              if: always()
+              shell: pwsh
+              run: |
+                  Write-Host "🧹 Cleaning up Docker resources..."
+                  try {
+                    docker stop gemma3-server
+                    Write-Host "✅ Container stopped"
+                  }
+                  catch {
+                    Write-Host "ℹ️ Container was already stopped"
+                  }
+
+                  try {
+                    docker rm gemma3-server
+                    Write-Host "✅ Container removed"
+                  }
+                  catch {
+                    Write-Host "ℹ️ Container was already removed"
+                  }
+
+                  Write-Host "✅ Cleanup completed"
