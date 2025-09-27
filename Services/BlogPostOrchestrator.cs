@@ -49,9 +49,8 @@ public class BlogPostOrchestrator
             var outline = await _researchAgent.ResearchAndOutlineAsync(
                 request.Topic,
                 request.Description,
-                request.TargetAudience);
-            stepStopwatch.Stop();
-            _logger.LogInformation("Step 1 completed in {ElapsedTime}ms", stepStopwatch.ElapsedMilliseconds);
+                request.TargetAudience); stepStopwatch.Stop();
+            _logger.LogInformation("Step 1 completed in {ElapsedTime}", FormatElapsedTime(stepStopwatch));
 
             // Step 2: Write initial content
             _logger.LogInformation("Step 2: Writing blog post content...");
@@ -59,16 +58,14 @@ public class BlogPostOrchestrator
             var initialContent = await _writerAgent.WriteContentAsync(
                 outline,
                 request.Tone,
-                request.WordCount);
-            stepStopwatch.Stop();
-            _logger.LogInformation("Step 2 completed in {ElapsedTime}ms", stepStopwatch.ElapsedMilliseconds);
+                request.WordCount); stepStopwatch.Stop();
+            _logger.LogInformation("Step 2 completed in {ElapsedTime}", FormatElapsedTime(stepStopwatch));
 
             // Step 3: Edit and polish content
             _logger.LogInformation("Step 3: Editing and polishing content...");
             stepStopwatch.Restart();
-            var editedContent = await _editorAgent.ReviewAndEditAsync(initialContent);
-            stepStopwatch.Stop();
-            _logger.LogInformation("Step 3 completed in {ElapsedTime}ms", stepStopwatch.ElapsedMilliseconds);
+            var editedContent = await _editorAgent.ReviewAndEditAsync(initialContent); stepStopwatch.Stop();
+            _logger.LogInformation("Step 3 completed in {ElapsedTime}", FormatElapsedTime(stepStopwatch));
 
             // Extract the edited content (remove editor notes)
             var contentParts = editedContent.Split(new[] { "EDITOR NOTES:" }, StringSplitOptions.None);
@@ -77,24 +74,19 @@ public class BlogPostOrchestrator
             // Step 4: Markdown linting and formatting
             _logger.LogInformation("Step 4: Linting and formatting markdown...");
             stepStopwatch.Restart();
-            var finalContent = await _markdownLinterAgent.LintAndFixMarkdownAsync(processedContent);
-            stepStopwatch.Stop();
-            _logger.LogInformation("Step 4 completed in {ElapsedTime}ms", stepStopwatch.ElapsedMilliseconds);
+            var finalContent = await _markdownLinterAgent.LintAndFixMarkdownAsync(processedContent); stepStopwatch.Stop();
+            _logger.LogInformation("Step 4 completed in {ElapsedTime}", FormatElapsedTime(stepStopwatch));
 
             // Step 5: SEO optimization
             _logger.LogInformation("Step 5: Optimizing for SEO...");
             stepStopwatch.Restart();
-            var seoData = await _seoAgent.OptimizeForSEOAsync(finalContent, request.Topic);
-            stepStopwatch.Stop();
-            _logger.LogInformation("Step 5 completed in {ElapsedTime}ms", stepStopwatch.ElapsedMilliseconds);
+            var seoData = await _seoAgent.OptimizeForSEOAsync(finalContent, request.Topic); stepStopwatch.Stop();
+            _logger.LogInformation("Step 5 completed in {ElapsedTime}", FormatElapsedTime(stepStopwatch));
 
             // Parse SEO JSON response
-            var seoResult = ParseSEOResponse(seoData);
-
-            totalStopwatch.Stop();
-            _logger.LogInformation("Blog post generation completed successfully! Total time: {TotalTime}ms ({TotalTimeSeconds:F2} seconds)",
-                totalStopwatch.ElapsedMilliseconds,
-                totalStopwatch.ElapsedMilliseconds / 1000.0);
+            var seoResult = ParseSEOResponse(seoData); totalStopwatch.Stop();
+            _logger.LogInformation("Blog post generation completed successfully! Total time: {TotalTime}",
+                FormatElapsedTime(totalStopwatch));
 
             return new BlogPostResult
             {
@@ -108,9 +100,18 @@ public class BlogPostOrchestrator
         catch (Exception ex)
         {
             totalStopwatch.Stop();
-            _logger.LogError(ex, "Error generating blog post after {ElapsedTime}ms", totalStopwatch.ElapsedMilliseconds);
+            _logger.LogError(ex, "Error generating blog post after {ElapsedTime}", FormatElapsedTime(totalStopwatch));
             throw;
         }
+    }    /// <summary>
+         /// Format elapsed time with units (e.g., "01h:23m:45s:678ms")
+         /// </summary>
+         /// <param name="stopwatch">The stopwatch to format elapsed time for</param>
+         /// <returns>Formatted time string with units for clarity</returns>
+    private string FormatElapsedTime(System.Diagnostics.Stopwatch stopwatch)
+    {
+        var elapsed = stopwatch.Elapsed;
+        return $"{elapsed.Hours:D2}h:{elapsed.Minutes:D2}m:{elapsed.Seconds:D2}s:{elapsed.Milliseconds:D3}ms";
     }
 
     /// <summary>
