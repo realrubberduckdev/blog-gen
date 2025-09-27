@@ -7,14 +7,7 @@ on:
                 description: "Blog request JSON content"
                 required: true
                 type: string
-                default: |
-                    {
-                      "Topic": "Getting Started with Local AI Models",
-                      "Description": "A comprehensive guide to setting up and using local AI models for content generation",
-                      "TargetAudience": "Developers",
-                      "WordCount": 800,
-                      "Tone": "Professional"
-                    }
+                default: '{"Topic": "Getting Started with Local AI Models", "Description": "A comprehensive guide to setting up and using local AI models for content generation", "TargetAudience": "Developers", "WordCount": 800, "Tone": "Professional"}'
 
 jobs:
     generate-blog-post:
