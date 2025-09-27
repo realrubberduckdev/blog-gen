@@ -1,4 +1,4 @@
-name: Blog Generator with Local AI
+name: Blog Generator
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ on:
         description: "Blog request JSON content"
         required: true
         type: string
-        default: '{"Topic": "Getting Started with Local AI Models", "Description": "A comprehensive guide to setting up and using local AI models for content generation", "TargetAudience": "Developers", "WordCount": 100, "Tone": "Professional"}'
+        default: '{"Topic": "Getting Started with AI Models", "Description": "A comprehensive guide to setting up and using AI models for content generation", "TargetAudience": "Developers", "WordCount": 100, "Tone": "Professional"}'
 
 jobs:
   generate-blog-post:
@@ -57,15 +57,14 @@ jobs:
       - name: Run Blog Generator
         shell: pwsh
         run: |
-          Write-Host "✍️ Running blog generator with local AI model..."
+          Write-Host "✍️ Running blog generator with Google AI model..."
 
-          # Run with local model configuration
-            # Configure secrets for model access
-            dotnet user-secrets init
-            dotnet user-secrets set "GoogleAI:ApiKey" "${{ secrets.GOOGLE_AI_API_KEY }}"
-            
-            # Run with API key from secrets
-            dotnet run --project blog-gen.csproj --configuration Release blog-request.json
+          # Configure secrets for model access
+          dotnet user-secrets init
+          dotnet user-secrets set "GoogleAI:ApiKey" "${{ secrets.GOOGLE_AI_API_KEY }}"
+
+          # Run with API key from secrets
+          dotnet run --project blog-gen.csproj --configuration Release blog-request.json
 
           if ($LASTEXITCODE -ne 0) {
             Write-Host "❌ Blog generation failed"
