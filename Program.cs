@@ -78,8 +78,8 @@ class Program
             }
 
             builder.AddGoogleAIGeminiChatCompletion(
-                modelId,
-                apiKey);
+                modelId: modelId,
+                apiKey: apiKey);
         }
         else
         {
@@ -98,9 +98,9 @@ class Program
             }
 
             builder.AddAzureOpenAIChatCompletion(
-                deploymentName,
-                endpoint,
-                apiKey);
+                deploymentName: deploymentName,
+                endpoint: endpoint,
+                apiKey: apiKey);
         }
 
         var kernel = builder.Build();
