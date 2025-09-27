@@ -19,6 +19,7 @@ class Program
         var configuration = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .AddUserSecrets<Program>()
+            .AddCommandLine(args)
             .Build();        // Get configuration settings and configure Semantic Kernel
         var useLocal = configuration.GetValue<bool>("LocalModel:UseLocal");
 
