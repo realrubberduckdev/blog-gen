@@ -1,122 +1,84 @@
 name: Blog Generator with Local AI
 
 on:
-    workflow_dispatch:
-        inputs:
-            blog_request_json:
-                description: "Blog request JSON content"
-                required: true
-                type: string
-                default: '{"Topic": "Getting Started with Local AI Models", "Description": "A comprehensive guide to setting up and using local AI models for content generation", "TargetAudience": "Developers", "WordCount": 100, "Tone": "Professional"}'
+  workflow_dispatch:
+    inputs:
+      blog_request_json:
+        description: "Blog request JSON content"
+        required: true
+        type: string
+        default: '{"Topic": "Getting Started with Local AI Models", "Description": "A comprehensive guide to setting up and using local AI models for content generation", "TargetAudience": "Developers", "WordCount": 100, "Tone": "Professional"}'
 
 jobs:
-    generate-blog-post:
-        runs-on: windows-latest
+  generate-blog-post:
+    runs-on: windows-latest
 
-        steps:
-            - name: Checkout Code
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-            - name: Setup .NET 9
-              uses: actions/setup-dotnet@v4
-              with:
-                  dotnet-version: "9.0.x"
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
 
-            - name: Create and Validate JSON File
-              shell: pwsh
-              run: |
-                  Write-Host "📝 Creating blog-request.json from input..."
-                  '${{ inputs.blog_request_json }}' | Out-File -FilePath blog-request.json -Encoding UTF8
+      - name: Create and Validate JSON File
+        shell: pwsh
+        run: |
+          Write-Host "📝 Creating blog-request.json from input..."
+          '${{ inputs.blog_request_json }}' | Out-File -FilePath blog-request.json -Encoding UTF8
 
-                  Write-Host "✅ Validating JSON format..."
-                  try {
-                    $json = Get-Content blog-request.json -Raw | ConvertFrom-Json
-                    Write-Host "✅ JSON syntax is valid"
-                  }
-                  catch {
-                    Write-Host "❌ ERROR: Invalid JSON format: $($_.Exception.Message)"
-                    Write-Host "Input received:"
-                    Write-Host '${{ inputs.blog_request_json }}'
-                    exit 1
-                  }
+          Write-Host "✅ Validating JSON format..."
+          try {
+            $json = Get-Content blog-request.json -Raw | ConvertFrom-Json
+            Write-Host "✅ JSON syntax is valid"
+          }
+          catch {
+            Write-Host "❌ ERROR: Invalid JSON format: $($_.Exception.Message)"
+            Write-Host "Input received:"
+            Write-Host '${{ inputs.blog_request_json }}'
+            exit 1
+          }
 
-                  Write-Host "✅ Validating required fields..."
-                  $requiredFields = @("Topic", "Description", "TargetAudience", "WordCount", "Tone")
+          Write-Host "✅ Validating required fields..."
+          $requiredFields = @("Topic", "Description", "TargetAudience", "WordCount", "Tone")
 
-                  foreach ($field in $requiredFields) {
-                    if (-not $json.PSObject.Properties.Name -contains $field) {
-                      Write-Host "❌ ERROR: Missing required field '$field'"
-                      exit 1
-                    }
-                  }
+          foreach ($field in $requiredFields) {
+            if (-not $json.PSObject.Properties.Name -contains $field) {
+              Write-Host "❌ ERROR: Missing required field '$field'"
+              exit 1
+            }
+          }
 
-                  Write-Host "✅ JSON validation successful!"
-                  Write-Host "📄 Blog request content:"
-                  Get-Content blog-request.json
+          Write-Host "✅ JSON validation successful!"
+          Write-Host "📄 Blog request content:"
+          Get-Content blog-request.json
 
-            - name: Pull AI Model
-              shell: pwsh
-              run: |
-                  Write-Host "📦 Getting docker details"
-                  docker version
+      - name: Run Blog Generator
+        shell: pwsh
+        run: |
+          Write-Host "✍️ Running blog generator with local AI model..."
 
-                  Write-Host "📊 Checking available disk space..."
-                  Get-PSDrive -PSProvider FileSystem | Format-Table Name, Used, Free
+          # Run with local model configuration
+            # Configure secrets for model access
+            dotnet user-secrets init
+            dotnet user-secrets set "GoogleAI:ApiKey" "${{ secrets.GOOGLE_AI_API_KEY }}"
+            
+            # Run with API key from secrets
+            dotnet run --project blog-gen.csproj --configuration Release blog-request.json
 
-                  Write-Host "💾 Checking Docker disk usage..."
-                  docker system df
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "❌ Blog generation failed"
+            exit 1
+          }
 
-                  Write-Host "📦 Pulling Docker model: ai/gemma3"
+          Write-Host "✅ Blog generation completed"
 
-                  # Pull the model with error handling
-                  try {
-                    docker model pull ai/gemma3
-                    Write-Host "✅ Successfully pulled ai/gemma3"
-                  } catch {
-                    Write-Host "❌ Failed to pull ai/gemma3"
-                    Write-Host "Available models:"
-                    docker model ls
-                    exit 1
-                  }
-
-                  Write-Host "🔍 Verifying model is available:"
-                  $modelList = docker model ls
-                  Write-Host "Available models:"
-                  Write-Host $modelList
-
-                  $gemmaModel = $modelList | Select-String "ai/gemma3"
-                  if (-not $gemmaModel) {
-                    Write-Host "📊 Checking available disk space..."
-                    Get-PSDrive -PSProvider FileSystem | Format-Table Name, Used, Free
-
-                    Write-Host "💾 Checking Docker disk usage..."
-                    docker system df
-                    Write-Host "❌ Model ai/gemma3 not found in available models"
-                    Write-Host "Expected to find 'ai/gemma3' in the model list above"
-                    exit 1
-                  }
-                  Write-Host "✅ Model verification successful - ai/gemma3 found"
-
-            - name: Run Blog Generator
-              shell: pwsh
-              run: |
-                  Write-Host "✍️ Running blog generator with local AI model..."
-
-                  # Run with local model configuration
-                  dotnet run --project blog-gen.csproj --configuration Release --LocalModel:UseLocal=true blog-request.json
-
-                  if ($LASTEXITCODE -ne 0) {
-                    Write-Host "❌ Blog generation failed"
-                    exit 1
-                  }
-
-                  Write-Host "✅ Blog generation completed"
-
-            - name: Upload Generated Content
-              uses: actions/upload-artifact@v4
-              with:
-                  name: generated-blog-content
-                  path: |
-                      *.md
-                      blog-request.json
-                  retention-days: 7
+      - name: Upload Generated Content
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-blog-content
+          path: |
+            *.md
+            blog-request.json
+          retention-days: 7
