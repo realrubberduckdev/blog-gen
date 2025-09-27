@@ -70,28 +70,32 @@ jobs:
 
                   # Pull the model with error handling
                   try {
-                    docker pull ai/gemma3
+                    docker model pull ai/gemma3
                     Write-Host "✅ Successfully pulled ai/gemma3"
-                  }
-                  catch {
+                  } catch {
                     Write-Host "❌ Failed to pull ai/gemma3"
-                    Write-Host "Available images:"
-                    docker images
+                    Write-Host "Available models:"
+                    docker model ls
                     exit 1
                   }
 
                   Write-Host "🔍 Verifying model is available:"
-                  $gemmaImages = docker images --format "table {{.Repository}}:{{.Tag}}" | Select-String "gemma3"
-                  if (-not $gemmaImages) {
+                  $modelList = docker model ls
+                  Write-Host "Available models:"
+                  Write-Host $modelList
+
+                  $gemmaModel = $modelList | Select-String "ai/gemma3"
+                  if (-not $gemmaModel) {
                     Write-Host "📊 Checking available disk space..."
                     Get-PSDrive -PSProvider FileSystem | Format-Table Name, Used, Free
 
                     Write-Host "💾 Checking Docker disk usage..."
                     docker system df
-                    Write-Host "❌ Model ai/gemma3 not found in local images"
+                    Write-Host "❌ Model ai/gemma3 not found in available models"
+                    Write-Host "Expected to find 'ai/gemma3' in the model list above"
                     exit 1
                   }
-                  Write-Host "✅ Model verification successful"
+                  Write-Host "✅ Model verification successful - ai/gemma3 found"
 
             - name: Run Blog Generator
               shell: pwsh
