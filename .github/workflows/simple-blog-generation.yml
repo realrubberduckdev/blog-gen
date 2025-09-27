@@ -60,6 +60,12 @@ jobs:
                   Write-Host "📦 Getting docker details"
                   docker version
 
+                  Write-Host "📊 Checking available disk space..."
+                  Get-PSDrive -PSProvider FileSystem | Format-Table Name, Used, Free
+
+                  Write-Host "💾 Checking Docker disk usage..."
+                  docker system df
+
                   Write-Host "📦 Pulling Docker model: ai/gemma3"
 
                   # Pull the model with error handling
@@ -77,6 +83,11 @@ jobs:
                   Write-Host "🔍 Verifying model is available:"
                   $gemmaImages = docker images --format "table {{.Repository}}:{{.Tag}}" | Select-String "gemma3"
                   if (-not $gemmaImages) {
+                    Write-Host "📊 Checking available disk space..."
+                    Get-PSDrive -PSProvider FileSystem | Format-Table Name, Used, Free
+
+                    Write-Host "💾 Checking Docker disk usage..."
+                    docker system df
                     Write-Host "❌ Model ai/gemma3 not found in local images"
                     exit 1
                   }
