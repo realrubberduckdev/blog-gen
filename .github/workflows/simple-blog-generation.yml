@@ -109,26 +109,3 @@ jobs:
                       *.md
                       blog-request.json
                   retention-days: 7
-
-            - name: Cleanup Docker
-              if: always()
-              shell: pwsh
-              run: |
-                  Write-Host "🧹 Cleaning up Docker resources..."
-                  try {
-                    docker stop gemma3-server
-                    Write-Host "✅ Container stopped"
-                  }
-                  catch {
-                    Write-Host "ℹ️ Container was already stopped"
-                  }
-
-                  try {
-                    docker rm gemma3-server
-                    Write-Host "✅ Container removed"
-                  }
-                  catch {
-                    Write-Host "ℹ️ Container was already removed"
-                  }
-
-                  Write-Host "✅ Cleanup completed"
