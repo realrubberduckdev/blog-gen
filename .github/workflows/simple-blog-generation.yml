@@ -57,6 +57,9 @@ jobs:
             - name: Pull AI Model
               shell: pwsh
               run: |
+                  Write-Host "📦 Getting docker details"
+                  docker version
+
                   Write-Host "📦 Pulling Docker model: ai/gemma3"
 
                   # Pull the model with error handling
