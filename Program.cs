@@ -31,7 +31,6 @@ class Program
 
         // Configure Semantic Kernel
         var builder = Kernel.CreateBuilder();
-
         if (useLocal)
         {
             // Configure for local model
@@ -64,8 +63,27 @@ class Program
                 endpoint: new Uri(endpoint),
                 httpClient: httpClient);
         }
+        else if (!string.IsNullOrEmpty(configuration["GoogleAI:ApiKey"]))
+        {
+            // Configure for Google Gemini
+            var modelId = configuration["GoogleAI:ModelId"];
+            var apiKey = configuration["GoogleAI:ApiKey"];
+
+            if (string.IsNullOrEmpty(modelId) || string.IsNullOrEmpty(apiKey))
+            {
+                Console.WriteLine("Error: GoogleAI configuration is incomplete. Please check your appsettings.json file and user secrets.");
+                Console.WriteLine($"ModelId: {(string.IsNullOrEmpty(modelId) ? "missing" : "present")}");
+                Console.WriteLine($"ApiKey: {(string.IsNullOrEmpty(apiKey) ? "missing" : "present")}");
+                Environment.Exit(1);
+            }
+
+            builder.AddGoogleAIGeminiChatCompletion(
+                modelId,
+                apiKey);
+        }
         else
-        {            // Configure for Azure OpenAI
+        {
+            // Configure for Azure OpenAI
             var endpoint = configuration["AzureOpenAI:Endpoint"];
             var deploymentName = configuration["AzureOpenAI:DeploymentName"];
             var apiKey = configuration["AzureOpenAI:ApiKey"];
