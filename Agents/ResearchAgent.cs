@@ -1,18 +1,20 @@
-using Microsoft.SemanticKernel;
-using System.ComponentModel;
+using BlogPostGenerator.Framework;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 
 namespace BlogPostGenerator.Agents;
 
 /// <summary>
 /// Research Agent responsible for gathering information and creating blog post outlines
 /// </summary>
-public class ResearchAgent
+public class ResearchAgent : BaseAgent, IAgent
 {
-    private readonly Kernel _kernel;
+    public string Name => "Research Agent";
+    public string Description => "Creates topic outlines and gathers information";
 
-    public ResearchAgent(Kernel kernel)
+    public ResearchAgent(IChatClient chatClient, ILogger<ResearchAgent> logger) 
+        : base(chatClient, logger)
     {
-        _kernel = kernel;
     }
 
     /// <summary>
@@ -21,12 +23,13 @@ public class ResearchAgent
     /// <param name="topic">The topic to research</param>
     /// <param name="description">Brief description of what to focus on</param>
     /// <param name="audience">Target audience for the blog post</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>A structured outline for the blog post</returns>
-    [KernelFunction, Description("Research topic and create blog post outline")]
     public async Task<string> ResearchAndOutlineAsync(
-        [Description("The topic to research")] string topic,
-        [Description("Brief description of what to focus on")] string description,
-        [Description("Target audience")] string audience = "General")
+        string topic, 
+        string description, 
+        string audience = "General",
+        CancellationToken cancellationToken = default)
     {
         var prompt = $"""
         You are a research specialist. Research the topic "{topic}" with focus on: {description}
@@ -43,7 +46,7 @@ public class ResearchAgent
         Format your response as structured text that can be easily parsed.
         """;
 
-        var result = await _kernel.InvokePromptAsync(prompt);
-        return result.ToString();
+        _logger.LogInformation("Starting research for topic: {Topic}", topic);
+        return await ExecutePromptAsync(prompt, cancellationToken);
     }
 }

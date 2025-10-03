@@ -1,36 +1,56 @@
 ﻿using BlogPostGenerator.Agents;
 using BlogPostGenerator.Models;
 using BlogPostGenerator.Services;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel;
 using System.Text.Json;
 
 namespace BlogPostGenerator;
 
 /// <summary>
-/// Program entry point and configuration
+/// Program entry point with Microsoft Agent Framework configuration
 /// </summary>
 class Program
 {
     static async Task Main(string[] args)
     {
-        var configuration = new ConfigurationBuilder()
+        var builder = Host.CreateApplicationBuilder(args);
+
+        // Configuration
+        builder.Configuration
             .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
             .AddUserSecrets<Program>()
-            .AddCommandLine(args)
-            .Build();        // Get configuration settings and configure Semantic Kernel
+            .AddCommandLine(args);
+
+        // Logging
+        builder.Logging.ClearProviders();
+        builder.Logging.AddConsole();
+
+        // Configure AI Chat Client
+        ConfigureChatClient(builder);
+
+        // Register agents
+        builder.Services.AddTransient<ResearchAgent>();
+        builder.Services.AddTransient<ContentWriterAgent>();
+        builder.Services.AddTransient<EditorAgent>();
+        builder.Services.AddTransient<MarkdownLinterAgent>();
+        builder.Services.AddTransient<SEOAgent>();
+        builder.Services.AddTransient<BlogPostOrchestrator>();
+
+        var host = builder.Build();
+
+        // Run the application
+        await RunBlogGenerationAsync(host, args);
+    }
+
+    private static void ConfigureChatClient(HostApplicationBuilder builder)
+    {
+        var configuration = builder.Configuration;
         var useLocal = configuration.GetValue<bool>("LocalModel:UseLocal");
 
-        // Configure services
-        var services = new ServiceCollection();
-
-        // Add logging
-        services.AddLogging(builder => builder.AddConsole());
-
-        // Configure Semantic Kernel
-        var builder = Kernel.CreateBuilder();
         if (useLocal)
         {
             // Configure for local model
@@ -38,48 +58,22 @@ class Program
             var modelName = configuration["LocalModel:ModelName"];
             var apiKey = configuration["LocalModel:ApiKey"];
 
-            if (string.IsNullOrEmpty(endpoint) || string.IsNullOrEmpty(modelName) || string.IsNullOrEmpty(apiKey))
+            if (string.IsNullOrEmpty(endpoint) || string.IsNullOrEmpty(modelName))
             {
-                Console.WriteLine("Error: LocalModel configuration is incomplete. Please check your appsettings.json file.");
+                Console.WriteLine("Error: Local model configuration is incomplete.");
                 Console.WriteLine($"Endpoint: {(string.IsNullOrEmpty(endpoint) ? "missing" : "present")}");
                 Console.WriteLine($"ModelName: {(string.IsNullOrEmpty(modelName) ? "missing" : "present")}");
-                Console.WriteLine($"ApiKey: {(string.IsNullOrEmpty(apiKey) ? "missing" : "present")}");
                 Environment.Exit(1);
             }
 
             Console.WriteLine($"Configuring for local model at: {endpoint}");
             Console.WriteLine($"Model: {modelName}");
 
-            // Create HttpClient with longer timeout
-            var httpClient = new HttpClient
+            // For now, use a placeholder implementation until we can resolve the correct API
+            builder.Services.AddSingleton<IChatClient>(serviceProvider =>
             {
-                // Increase timeout as local runs take long
-                Timeout = TimeSpan.FromMinutes(10)
-            };
-
-            builder.AddOpenAIChatCompletion(
-                modelId: modelName,
-                apiKey: apiKey,
-                endpoint: new Uri(endpoint),
-                httpClient: httpClient);
-        }
-        else if (!string.IsNullOrEmpty(configuration["GoogleAI:ApiKey"]))
-        {
-            // Configure for Google Gemini
-            var modelId = configuration["GoogleAI:ModelId"];
-            var apiKey = configuration["GoogleAI:ApiKey"];
-
-            if (string.IsNullOrEmpty(modelId) || string.IsNullOrEmpty(apiKey))
-            {
-                Console.WriteLine("Error: GoogleAI configuration is incomplete. Please check your appsettings.json file and user secrets.");
-                Console.WriteLine($"ModelId: {(string.IsNullOrEmpty(modelId) ? "missing" : "present")}");
-                Console.WriteLine($"ApiKey: {(string.IsNullOrEmpty(apiKey) ? "missing" : "present")}");
-                Environment.Exit(1);
-            }
-
-            builder.AddGoogleAIGeminiChatCompletion(
-                modelId: modelId,
-                apiKey: apiKey);
+                throw new NotImplementedException("Local model configuration needs to be implemented with the correct Microsoft.Extensions.AI.OpenAI API");
+            });
         }
         else
         {
@@ -90,37 +84,31 @@ class Program
 
             if (string.IsNullOrEmpty(endpoint) || string.IsNullOrEmpty(deploymentName) || string.IsNullOrEmpty(apiKey))
             {
-                Console.WriteLine("Error: Azure OpenAI configuration is incomplete. Please check your appsettings.json file and user secrets.");
+                Console.WriteLine("Error: Azure OpenAI configuration is incomplete.");
                 Console.WriteLine($"Endpoint: {(string.IsNullOrEmpty(endpoint) ? "missing" : "present")}");
                 Console.WriteLine($"DeploymentName: {(string.IsNullOrEmpty(deploymentName) ? "missing" : "present")}");
                 Console.WriteLine($"ApiKey: {(string.IsNullOrEmpty(apiKey) ? "missing" : "present")}");
                 Environment.Exit(1);
             }
 
-            builder.AddAzureOpenAIChatCompletion(
-                deploymentName: deploymentName,
-                endpoint: endpoint,
-                apiKey: apiKey);
+            // For now, use a placeholder implementation until we can resolve the correct API
+            builder.Services.AddSingleton<IChatClient>(serviceProvider =>
+            {
+                throw new NotImplementedException("Azure OpenAI configuration needs to be implemented with the correct Microsoft.Extensions.AI.OpenAI API");
+            });
         }
+    }
 
-        var kernel = builder.Build();
-
-        // Register agents
-        services.AddSingleton(kernel);
-        services.AddTransient<ResearchAgent>();
-        services.AddTransient<ContentWriterAgent>();
-        services.AddTransient<SEOAgent>();
-        services.AddTransient<EditorAgent>();
-        services.AddTransient<MarkdownLinterAgent>();
-        services.AddTransient<BlogPostOrchestrator>();
-
-        var serviceProvider = services.BuildServiceProvider();
-        var orchestrator = serviceProvider.GetRequiredService<BlogPostOrchestrator>();
+    private static async Task RunBlogGenerationAsync(IHost host, string[] args)
+    {
+        using var scope = host.Services.CreateScope();
+        var orchestrator = scope.ServiceProvider.GetRequiredService<BlogPostOrchestrator>();
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
         // Parse command line arguments, configuration, or use interactive input
         var request = await GetBlogPostRequestAsync(args, configuration);
 
-        Console.WriteLine("Generating blog post...");
+        Console.WriteLine("Generating blog post with Microsoft Agent Framework...");
         Console.WriteLine($"Topic: {request.Topic}");
         Console.WriteLine($"Description: {request.Description}");
         Console.WriteLine(new string('-', 50));
@@ -153,16 +141,29 @@ class Program
 
             // Write to file
             await File.WriteAllTextAsync(filePath, markdownContent);
-            Console.WriteLine($"Blog post generated successfully!");
-            Console.WriteLine($"File saved as: {fileName}");
+
+            Console.WriteLine("\n✅ Blog post generated successfully!");
+            Console.WriteLine($"📝 Title: {result.Title}");
+            Console.WriteLine($"📊 Word Count: {result.Content.Split(' ').Length}");
+            Console.WriteLine($"📝 Meta Description: {result.MetaDescription}");
+            
+            if (result.Tags.Any())
+            {
+                Console.WriteLine($"🏷️ Tags: {string.Join(", ", result.Tags)}");
+            }
+
+            Console.WriteLine($"💾 File saved as: {fileName}");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"❌ Error: {ex.Message}");
+            Environment.Exit(1);
         }
-    }    /// <summary>
-         /// Gets blog post request from multiple sources: JSON file, command line args, config file, or interactive input
-         /// </summary>
+    }
+
+    /// <summary>
+    /// Gets blog post request from multiple sources: JSON file, command line args, config file, or interactive input
+    /// </summary>
     private static async Task<BlogPostRequest> GetBlogPostRequestAsync(string[] args, IConfiguration configuration)
     {
         // Option 1: Check for JSON file parameter
@@ -284,9 +285,11 @@ class Program
         }
 
         return request;
-    }    /// <summary>
-         /// Gets blog post request through interactive console input
-         /// </summary>
+    }
+
+    /// <summary>
+    /// Gets blog post request through interactive console input
+    /// </summary>
     private static Task<BlogPostRequest> GetInteractiveInputAsync()
     {
         var request = new BlogPostRequest();
@@ -308,16 +311,19 @@ class Program
             request.WordCount = wordCount;
 
         Console.Write($"Tone (default: {request.Tone}): ");
-        var tone = Console.ReadLine(); if (!string.IsNullOrEmpty(tone))
+        var tone = Console.ReadLine();
+        if (!string.IsNullOrEmpty(tone))
             request.Tone = tone;
 
         return Task.FromResult(request);
-    }    /// <summary>
-         /// Shows command line usage help
-         /// </summary>
+    }
+
+    /// <summary>
+    /// Shows command line usage help
+    /// </summary>
     private static void ShowUsage()
     {
-        Console.WriteLine("Blog Post Generator Usage:");
+        Console.WriteLine("Blog Post Generator Usage (Microsoft Agent Framework):");
         Console.WriteLine();
         Console.WriteLine("JSON File Input (Recommended):");
         Console.WriteLine("  dotnet run sample-request.json");

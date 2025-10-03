@@ -1,28 +1,31 @@
-using Microsoft.SemanticKernel;
-using System.ComponentModel;
+using BlogPostGenerator.Framework;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 
 namespace BlogPostGenerator.Agents;
 
 /// <summary>
 /// Markdown Linter Agent responsible for ensuring markdown content follows proper formatting standards and has no linting issues
 /// </summary>
-public class MarkdownLinterAgent
+public class MarkdownLinterAgent : BaseAgent, IAgent
 {
-    private readonly Kernel _kernel;
+    public string Name => "Markdown Linter Agent";
+    public string Description => "Ensures proper markdown formatting standards";
 
-    public MarkdownLinterAgent(Kernel kernel)
+    public MarkdownLinterAgent(IChatClient chatClient, ILogger<MarkdownLinterAgent> logger) 
+        : base(chatClient, logger)
     {
-        _kernel = kernel;
     }
 
     /// <summary>
     /// Lint and fix markdown formatting issues in the blog post content
     /// </summary>
     /// <param name="content">Markdown content to lint and fix</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Properly formatted markdown content with linting issues resolved</returns>
-    [KernelFunction, Description("Lint and fix markdown formatting issues in blog post content")]
     public async Task<string> LintAndFixMarkdownAsync(
-        [Description("Markdown content to lint and fix")] string content)
+        string content,
+        CancellationToken cancellationToken = default)
     {
         var prompt = $"""
         You are a markdown linter and formatter. Review the following markdown content and fix any linting issues:
@@ -52,18 +55,20 @@ public class MarkdownLinterAgent
         - The output should be clean, properly formatted markdown that passes standard linting rules.
         """;
 
-        var result = await _kernel.InvokePromptAsync(prompt);
-        return result.ToString().Trim();
+        _logger.LogInformation("Starting markdown linting and formatting");
+        var result = await ExecutePromptAsync(prompt, cancellationToken);
+        return result.Trim();
     }
 
     /// <summary>
     /// Validate markdown structure and provide recommendations
     /// </summary>
     /// <param name="content">Markdown content to validate</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Validation report with issues found and recommendations</returns>
-    [KernelFunction, Description("Validate markdown structure and provide linting recommendations")]
     public async Task<string> ValidateMarkdownStructureAsync(
-        [Description("Markdown content to validate")] string content)
+        string content,
+        CancellationToken cancellationToken = default)
     {
         var prompt = $"""
         You are a markdown validator. Analyze the following markdown content and provide a brief validation report:
@@ -89,7 +94,8 @@ public class MarkdownLinterAgent
         - [Brief suggestions for improvement, or "Content follows markdown best practices" if clean]
         """;
 
-        var result = await _kernel.InvokePromptAsync(prompt);
-        return result.ToString().Trim();
+        _logger.LogInformation("Starting markdown validation");
+        var result = await ExecutePromptAsync(prompt, cancellationToken);
+        return result.Trim();
     }
 }

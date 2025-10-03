@@ -6,145 +6,182 @@ using System.Text.Json;
 namespace BlogPostGenerator.Services;
 
 /// <summary>
-/// Main orchestrator service that coordinates the blog post generation pipeline
+/// Main orchestrator service using Microsoft Agent Framework that coordinates the blog post generation pipeline
 /// </summary>
 public class BlogPostOrchestrator
 {
     private readonly ResearchAgent _researchAgent;
-    private readonly ContentWriterAgent _writerAgent;
-    private readonly SEOAgent _seoAgent;
+    private readonly ContentWriterAgent _contentWriterAgent;
     private readonly EditorAgent _editorAgent;
     private readonly MarkdownLinterAgent _markdownLinterAgent;
+    private readonly SEOAgent _seoAgent;
     private readonly ILogger<BlogPostOrchestrator> _logger;
 
     public BlogPostOrchestrator(
         ResearchAgent researchAgent,
-        ContentWriterAgent writerAgent,
-        SEOAgent seoAgent,
+        ContentWriterAgent contentWriterAgent,
         EditorAgent editorAgent,
         MarkdownLinterAgent markdownLinterAgent,
+        SEOAgent seoAgent,
         ILogger<BlogPostOrchestrator> logger)
     {
         _researchAgent = researchAgent;
-        _writerAgent = writerAgent;
-        _seoAgent = seoAgent;
+        _contentWriterAgent = contentWriterAgent;
         _editorAgent = editorAgent;
         _markdownLinterAgent = markdownLinterAgent;
+        _seoAgent = seoAgent;
         _logger = logger;
-    }    /// <summary>
-         /// Generate a complete blog post using the 5-stage pipeline
-         /// </summary>
-         /// <param name="request">Blog post generation request parameters</param>
-         /// <returns>Complete blog post result with content and metadata</returns>
-    public async Task<BlogPostResult> GenerateBlogPostAsync(BlogPostRequest request)
+    }
+
+    /// <summary>
+    /// Generate a complete blog post using the Microsoft Agent Framework pipeline
+    /// </summary>
+    /// <param name="request">Blog post generation request parameters</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Complete blog post result with content and metadata</returns>
+    public async Task<BlogPostResult> GenerateBlogPostAsync(
+        BlogPostRequest request, 
+        CancellationToken cancellationToken = default)
     {
         var totalStopwatch = System.Diagnostics.Stopwatch.StartNew();
-        _logger.LogInformation("Starting blog post generation for topic: {Topic}", request.Topic);
+        _logger.LogInformation("Starting blog post generation pipeline for: {Topic}", request.Topic);
 
         try
         {
-            // Step 1: Research and create outline
-            _logger.LogInformation("Step 1: Researching topic and creating outline...");
+            // Step 1: Research and outline
+            _logger.LogInformation("Step 1: Research and outline creation");
             var stepStopwatch = System.Diagnostics.Stopwatch.StartNew();
             var outline = await _researchAgent.ResearchAndOutlineAsync(
-                request.Topic,
-                request.Description,
-                request.TargetAudience); stepStopwatch.Stop();
+                request.Topic, 
+                request.Description, 
+                request.TargetAudience,
+                cancellationToken);
+            stepStopwatch.Stop();
             _logger.LogInformation("Step 1 completed in {ElapsedTime}", FormatElapsedTime(stepStopwatch));
 
-            // Step 2: Write initial content
-            _logger.LogInformation("Step 2: Writing blog post content...");
+            // Step 2: Content writing
+            _logger.LogInformation("Step 2: Content writing");
             stepStopwatch.Restart();
-            var initialContent = await _writerAgent.WriteContentAsync(
-                outline,
-                request.Tone,
-                request.WordCount); stepStopwatch.Stop();
+            var content = await _contentWriterAgent.WriteContentAsync(
+                outline, 
+                request.Tone, 
+                request.WordCount,
+                cancellationToken);
+            stepStopwatch.Stop();
             _logger.LogInformation("Step 2 completed in {ElapsedTime}", FormatElapsedTime(stepStopwatch));
 
-            // Step 3: Edit and polish content
-            _logger.LogInformation("Step 3: Editing and polishing content...");
+            // Step 3: Editing
+            _logger.LogInformation("Step 3: Content editing");
             stepStopwatch.Restart();
-            var editedContent = await _editorAgent.ReviewAndEditAsync(initialContent); stepStopwatch.Stop();
+            var editedContent = await _editorAgent.ReviewAndEditAsync(content, cancellationToken);
+            stepStopwatch.Stop();
             _logger.LogInformation("Step 3 completed in {ElapsedTime}", FormatElapsedTime(stepStopwatch));
 
-            // Extract the edited content (remove editor notes)
-            var contentParts = editedContent.Split(new[] { "EDITOR NOTES:" }, StringSplitOptions.None);
-            var processedContent = contentParts[0].Replace("EDITED CONTENT:", "").Trim();
+            // Extract the edited content (remove editor notes for linting)
+            var finalContent = ExtractEditedContent(editedContent);
 
-            // Step 4: Markdown linting and formatting
-            _logger.LogInformation("Step 4: Linting and formatting markdown...");
+            // Step 4: Markdown linting
+            _logger.LogInformation("Step 4: Markdown validation");
             stepStopwatch.Restart();
-            var finalContent = await _markdownLinterAgent.LintAndFixMarkdownAsync(processedContent); stepStopwatch.Stop();
+            var lintingReport = await _markdownLinterAgent.ValidateMarkdownStructureAsync(
+                finalContent, 
+                cancellationToken);
+            stepStopwatch.Stop();
             _logger.LogInformation("Step 4 completed in {ElapsedTime}", FormatElapsedTime(stepStopwatch));
 
             // Step 5: SEO optimization
-            _logger.LogInformation("Step 5: Optimizing for SEO...");
+            _logger.LogInformation("Step 5: SEO optimization");
             stepStopwatch.Restart();
-            var seoData = await _seoAgent.OptimizeForSEOAsync(finalContent, request.Topic); stepStopwatch.Stop();
+            var seoData = await _seoAgent.OptimizeForSEOAsync(
+                finalContent, 
+                request.Topic,
+                cancellationToken);
+            stepStopwatch.Stop();
             _logger.LogInformation("Step 5 completed in {ElapsedTime}", FormatElapsedTime(stepStopwatch));
 
-            // Parse SEO JSON response
-            var seoResult = ParseSEOResponse(seoData); totalStopwatch.Stop();
+            // Parse SEO data
+            var seoMetadata = ParseSeoMetadata(seoData);
+
+            totalStopwatch.Stop();
             _logger.LogInformation("Blog post generation completed successfully! Total time: {TotalTime}",
                 FormatElapsedTime(totalStopwatch));
 
             return new BlogPostResult
             {
-                Title = seoResult.Title,
+                Title = seoMetadata.GetValueOrDefault("title", request.Topic),
                 Content = finalContent,
-                Tags = seoResult.Tags,
-                MetaDescription = seoResult.MetaDescription,
-                Summary = seoResult.Summary
+                MetaDescription = seoMetadata.GetValueOrDefault("metaDescription", ""),
+                Tags = ParseKeywords(seoMetadata.GetValueOrDefault("primaryKeywords", "")),
+                Summary = seoMetadata.GetValueOrDefault("summary", "")
             };
         }
         catch (Exception ex)
         {
             totalStopwatch.Stop();
-            _logger.LogError(ex, "Error generating blog post after {ElapsedTime}", FormatElapsedTime(totalStopwatch));
+            _logger.LogError(ex, "Error occurred during blog post generation after {ElapsedTime}", 
+                FormatElapsedTime(totalStopwatch));
             throw;
         }
-    }    /// <summary>
-         /// Format elapsed time with units (e.g., "01h:23m:45s:678ms")
-         /// </summary>
-         /// <param name="stopwatch">The stopwatch to format elapsed time for</param>
-         /// <returns>Formatted time string with units for clarity</returns>
+    }
+
+    private string ExtractEditedContent(string editedContent)
+    {
+        var contentStart = editedContent.IndexOf("EDITED CONTENT:", StringComparison.OrdinalIgnoreCase);
+        if (contentStart == -1) return editedContent;
+
+        var editorNotesStart = editedContent.IndexOf("EDITOR NOTES:", StringComparison.OrdinalIgnoreCase);
+        if (editorNotesStart == -1) return editedContent[(contentStart + 15)..].Trim();
+
+        return editedContent.Substring(contentStart + 15, editorNotesStart - contentStart - 15).Trim();
+    }
+
+    private string ExtractEditorNotes(string editedContent)
+    {
+        var notesStart = editedContent.IndexOf("EDITOR NOTES:", StringComparison.OrdinalIgnoreCase);
+        return notesStart == -1 ? "" : editedContent[(notesStart + 13)..].Trim();
+    }
+
+    private Dictionary<string, string> ParseSeoMetadata(string seoData)
+    {
+        try
+        {
+            var jsonElement = JsonSerializer.Deserialize<JsonElement>(seoData);
+            var metadata = new Dictionary<string, string>();
+
+            foreach (var property in jsonElement.EnumerateObject())
+            {
+                metadata[property.Name] = property.Value.GetString() ?? "";
+            }
+
+            return metadata;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse SEO metadata, using fallback values");
+            return new Dictionary<string, string>();
+        }
+    }
+
+    private List<string> ParseKeywords(string keywordsString)
+    {
+        if (string.IsNullOrEmpty(keywordsString)) return new List<string>();
+
+        return keywordsString
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(k => k.Trim())
+            .ToList();
+    }
+
+    private string GenerateSlug(string topic)
+    {
+        return topic.ToLowerInvariant()
+            .Replace(" ", "-")
+            .Replace("&", "and");
+    }
+
     private string FormatElapsedTime(System.Diagnostics.Stopwatch stopwatch)
     {
         var elapsed = stopwatch.Elapsed;
         return $"{elapsed.Hours:D2}h:{elapsed.Minutes:D2}m:{elapsed.Seconds:D2}s:{elapsed.Milliseconds:D3}ms";
-    }
-
-    /// <summary>
-    /// Parse SEO response JSON with fallback handling for malformed JSON
-    /// </summary>
-    /// <param name="seoJson">JSON response from SEO agent</param>
-    /// <returns>Parsed SEO data with fallback values</returns>
-    private (string Title, List<string> Tags, string MetaDescription, string Summary) ParseSEOResponse(string seoJson)
-    {
-        try
-        {
-            // Clean up the JSON response if it contains extra text
-            var jsonStart = seoJson.IndexOf('{');
-            var jsonEnd = seoJson.LastIndexOf('}');
-            if (jsonStart >= 0 && jsonEnd > jsonStart)
-            {
-                seoJson = seoJson.Substring(jsonStart, jsonEnd - jsonStart + 1);
-            }
-
-            var seoData = JsonSerializer.Deserialize<JsonElement>(seoJson);
-
-            return (
-                Title: seoData.TryGetProperty("title", out var title) ? title.GetString() ?? "" : "",
-                Tags: seoData.TryGetProperty("tags", out var tags) ?
-                      tags.EnumerateArray().Select(t => t.GetString() ?? "").ToList() : new List<string>(),
-                MetaDescription: seoData.TryGetProperty("metaDescription", out var meta) ? meta.GetString() ?? "" : "",
-                Summary: seoData.TryGetProperty("summary", out var summary) ? summary.GetString() ?? "" : ""
-            );
-        }
-        catch (JsonException)
-        {
-            // Fallback if JSON parsing fails
-            return ("Generated Blog Post", new List<string>(), "", "");
-        }
     }
 }

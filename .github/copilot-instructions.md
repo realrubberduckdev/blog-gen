@@ -1,7 +1,7 @@
 # AI Agent Instructions for Blog Generator
 
 ## Project Overview
-This is a multi-agent AI system that generates high-quality blog posts using Microsoft Semantic Kernel. The application uses a **4-stage pipeline** with specialized agents:
+This is a multi-agent AI system that generates high-quality blog posts using **Microsoft Agent Framework**. The application uses a **4-stage pipeline** with specialized agents:
 
 1. **ResearchAgent** - Creates topic outlines and gathers information
 2. **ContentWriterAgent** - Writes the main blog content from outlines
@@ -10,10 +10,11 @@ This is a multi-agent AI system that generates high-quality blog posts using Mic
 
 ## Architecture Patterns
 
-### Agent-Based Architecture
-- All agents inherit `Kernel` dependency and use `[KernelFunction]` attributes
-- Each agent has a single responsibility and communicates through the `BlogPostOrchestrator`
+### Agent Framework Architecture
+- All agents inherit from `BaseAgent` and use `IChatClient` for AI interactions
+- Each agent implements `IAgent` interface with standardized properties
 - The orchestrator coordinates the pipeline: Research → Write → Edit → SEO
+- Built on Microsoft.Extensions.AI abstractions
 
 ### Key Classes Structure
 ```
@@ -21,10 +22,9 @@ BlogPostRequest (input) → BlogPostOrchestrator → BlogPostResult (output)
 ```
 
 ### Configuration & Secrets
-- Uses **Azure OpenAI** (not regular OpenAI) with configurable endpoint from `appsettings.json`
+- Uses **Microsoft.Extensions.AI** with support for Azure OpenAI, OpenAI, and local models
 - API keys stored in user secrets: `dotnet user-secrets set "AzureOpenAI:ApiKey" "your-key"`
-- Configuration supports both Azure OpenAI and local model deployment via Docker
-- Settings managed through `appsettings.json` and environment-specific overrides
+- Configuration supports multiple AI providers through unified IChatClient interface
 
 ### Input Methods
 - **Primary**: JSON files for complex blog requests with verbose descriptions
@@ -81,26 +81,25 @@ Set `UseLocal: true` in `appsettings.Development.json` to use local models durin
 
 ### Dependencies
 - Target Framework: **.NET 9.0**
-- Key packages: Microsoft.SemanticKernel (v1.65.0), Azure OpenAI connectors
-- Uses dependency injection pattern with `ServiceCollection`
+- Key packages: Microsoft.Extensions.AI, Microsoft.Extensions.Hosting
+- Uses dependency injection pattern with `IServiceCollection`
 
 ## Code Conventions
 
 ### Agent Implementation Pattern
 ```csharp
-public class SomeAgent
+public class SomeAgent : BaseAgent, IAgent
 {
-    private readonly Kernel _kernel;
+    public string Name => "Agent Name";
+    public string Description => "Agent description";
     
-    [KernelFunction, Description("What this function does")]
-    public async Task<string> SomeActionAsync(
-        [Description("Parameter description")] string param)
+    public SomeAgent(IChatClient chatClient, ILogger<SomeAgent> logger) 
+        : base(chatClient, logger) { }
+    
+    public async Task<string> SomeActionAsync(string param, CancellationToken cancellationToken = default)
     {
-        var prompt = $"""
-        Multi-line prompt with {param}
-        """;
-        var result = await _kernel.InvokePromptAsync(prompt);
-        return result.ToString();
+        var prompt = $"Process {param}";
+        return await ExecutePromptAsync(prompt, cancellationToken);
     }
 }
 ```
@@ -116,27 +115,26 @@ public class SomeAgent
 
 ## Integration Points
 
-### Azure OpenAI Configuration
-- Must use `AddAzureOpenAIChatCompletion()` method (not regular OpenAI)
-- Endpoint and deployment name are environment-specific
+### Microsoft Agent Framework Configuration
+- Uses `IChatClient` abstraction for all AI interactions
+- Support for Azure OpenAI, OpenAI, and local models through Microsoft.Extensions.AI
 - API key retrieved from user secrets configuration
-- Configuration supports both Azure OpenAI and local model deployment via Docker
+- Configuration supports multiple AI providers with unified interface
 
 ### Service Registration
-All agents registered as transient services in DI container. The kernel instance is registered as singleton and shared across all agents.
+All agents registered as transient services in DI container. The `IChatClient` instance is configured during application startup.
 
 ## Working with This Codebase
 
 ### Adding New Agents
-1. Create class with `Kernel` dependency
-2. Add `[KernelFunction]` methods with descriptions
-3. Register in `ServiceCollection` as transient
-4. Add to orchestrator pipeline if needed
+1. Create class inheriting from `BaseAgent` and implementing `IAgent`
+2. Register in DI container as transient
+3. Add to orchestrator pipeline if needed
 
 ### Modifying Pipeline
 The orchestrator defines the execution order. Each step passes its output to the next stage. Maintain this pattern for consistency.
 
 ### Error Handling
-- Wrap orchestrator calls in try-catch with structured logging
-- Provide meaningful error messages for API key configuration issues
-- Graceful degradation in JSON parsing with sensible defaults
+- Wrap agent calls in try-catch with structured logging
+- Provide meaningful error messages for API configuration issues
+- Graceful degradation with sensible defaults
