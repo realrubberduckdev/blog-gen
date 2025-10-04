@@ -1,7 +1,8 @@
 {
     "Topic": "If Programming Languages Were People at a Party",
-    "Description": "At the party of programming languages, Python’s making everyone feel welcome, JavaScript’s juggling flaming objects, TypeScript’s nervously correcting him, C# is networking in a suit, PowerShell’s DJing with scripts, Golang’s timing bathroom breaks for efficiency, and Rust’s checking door locks. C++? Brooding in the corner, optimizing the punch recipe.",
+    "Description": "At the party of programming languages, Python's making everyone feel welcome, JavaScript's juggling flaming objects, TypeScript's nervously correcting him, C# is networking in a suit, PowerShell's DJing with scripts, Golang's timing bathroom breaks for efficiency, and Rust's checking door locks. C++? Brooding in the corner, optimizing the punch recipe.",
     "TargetAudience": "Software Developers, Software Engineers, Students",
     "WordCount": 250,
-    "Tone": "Technical"
+    "Tone": "Technical",
+    "Author": "Ada Lovelace"
 }

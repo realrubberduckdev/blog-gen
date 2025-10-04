@@ -5,5 +5,6 @@
     "Description": "Detailed description of what you want to cover in the blog post. This can be very long and include specific points, examples, or requirements. The more detail you provide here, the better the AI agents can create targeted content.",
     "TargetAudience": "Who is this blog post for? Examples: General, Developers, DevOps Engineers, Business Professionals, Students, etc.",
     "WordCount": 800,
-    "Tone": "What writing style? Examples: Professional, Casual, Technical, Conversational, Academic, Friendly, etc."
+    "Tone": "What writing style? Examples: Professional, Casual, Technical, Conversational, Academic, Friendly, etc.",
+    "Author": "Your name or pen name (optional)"
 }

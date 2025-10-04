@@ -230,7 +230,7 @@ public class BlogGenerationService
             layout: post
             title: {result.Title}
             image: img/banner.jpg
-            author: Dushyant
+            author: {(string.IsNullOrEmpty(blogRequest.Author) ? "Anonymous" : blogRequest.Author)}
             date: {DateTime.Now:yyyy-MM-ddTHH:mm:ss.fffZ}
             tags: [{string.Join(", ", result.Tags.Select(tag => $"\"{tag}\""))}]
             draft: false
@@ -456,6 +456,10 @@ public class BlogGenerationService
                 case "--tone":
                     if (i + 1 < args.Length) request.Tone = args[++i];
                     break;
+                case "--author":
+                case "-au":
+                    if (i + 1 < args.Length) request.Author = args[++i];
+                    break;
             }
         }
 
@@ -487,13 +491,17 @@ public class BlogGenerationService
         var tone = Console.ReadLine();
         if (string.IsNullOrEmpty(tone)) tone = "Professional";
 
+        Console.Write("Enter author (optional): ");
+        var author = Console.ReadLine() ?? string.Empty;
+
         return Task.FromResult(new BlogPostRequest
         {
             Topic = topic,
             Description = description,
             TargetAudience = audience,
             WordCount = wordCount,
-            Tone = tone
+            Tone = tone,
+            Author = author
         });
     }
 
