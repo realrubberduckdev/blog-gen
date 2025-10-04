@@ -65,7 +65,7 @@ class Program
 
             // Try Google Gemini configuration
             var geminiApiKey = configuration["GoogleAI:ApiKey"];
-            var geminiModelId = configuration["GoogleAI:ModelId"] ?? "gemini-2.5-flash";
+            var geminiModelId = configuration["GoogleAI:ModelId"] ?? "gemini-2.5-flash"; // list of available models https://ai.google.dev/gemini-api/docs/models
 
             if (!string.IsNullOrEmpty(geminiApiKey))
             {
