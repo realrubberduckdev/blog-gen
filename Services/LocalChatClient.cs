@@ -34,6 +34,7 @@ public class LocalChatClient : IChatClient
         ChatOptions? options = null, 
         CancellationToken cancellationToken = default)
     {
+        // doc references https://docs.docker.com/ai/model-runner/api-reference/
         var request = CreateLocalRequest(chatMessages, options);
         var jsonContent = JsonSerializer.Serialize(request, _jsonOptions);
         
