@@ -34,6 +34,7 @@ public class GeminiChatClient : IChatClient
         CancellationToken cancellationToken = default)
     {
         // doc reference https://ai.google.dev/gemini-api/docs/quickstart#make-first-request
+        // and there is a free tier for limited usage https://ai.google.dev/gemini-api/docs/pricing
         var request = CreateGeminiRequest(chatMessages, options);
         var jsonContent = JsonSerializer.Serialize(request, _jsonOptions);
         
