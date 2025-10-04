@@ -14,7 +14,7 @@
 
 - **.NET 9.0** with **Microsoft Agent Framework**
 - **Microsoft.Extensions.AI** for AI integration
-- **Azure OpenAI** / **OpenAI** / **Local Model** support
+- **Google Gemini** / **Azure OpenAI** / **OpenAI** / **Local Model** support
 - **Agent-based architecture** with dependency injection
 
 ## 🚀 Quick Start
@@ -24,8 +24,12 @@
 git clone <repo-url>
 cd blog-gen
 
-# Configure API key
-dotnet user-secrets set "AzureOpenAI:ApiKey" "your-key"
+# Configure API key (choose one)
+# Google Gemini (recommended)
+dotnet user-secrets set "GoogleGemini:ApiKey" "your-gemini-key"
+
+# Azure OpenAI
+dotnet user-secrets set "AzureOpenAI:ApiKey" "your-azure-key"
 
 # Run with JSON file (recommended)
 dotnet run sample-request.json
@@ -84,9 +88,30 @@ Add defaults to `appsettings.json`:
 
 Run without arguments to enter interactive mode.
 
-## ⚙️ Configuration
+## ⚙️ AI Provider Configuration
 
-The application now uses **Microsoft Agent Framework** with Microsoft.Extensions.AI:
+The application supports multiple AI providers with **Microsoft Agent Framework**:
+
+### 🚀 Google Gemini (Recommended)
+
+```bash
+dotnet user-secrets set "GoogleGemini:ApiKey" "your-google-ai-api-key"
+```
+
+Configuration in `appsettings.json`:
+
+```json
+{
+  "GoogleGemini": {
+    "ModelId": "gemini-2.5-flash",
+    "ApiKey": ""
+  }
+}
+```
+
+See [GEMINI_SETUP.md](GEMINI_SETUP.md) for detailed setup instructions.
+
+### ☁️ Azure OpenAI
 
 ```json
 {
@@ -97,7 +122,7 @@ The application now uses **Microsoft Agent Framework** with Microsoft.Extensions
 }
 ```
 
-**Local Model Configuration (Docker):**
+### 🏠 Local Model Configuration (Docker)
 
 ```json
 {
@@ -110,7 +135,13 @@ The application now uses **Microsoft Agent Framework** with Microsoft.Extensions
 }
 ```
 
-Set `UseLocal: true` in `appsettings.Development.json` to use local models during development.
+### 🔄 Provider Priority
+
+The application checks providers in this order:
+
+1. **Google Gemini** (if ApiKey configured)
+2. **Azure OpenAI** (if Endpoint configured)  
+3. **OpenAI** (if ApiKey configured)
 
 ## 📊 Pipeline
 

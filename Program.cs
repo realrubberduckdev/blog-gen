@@ -31,12 +31,23 @@ class Program
         builder.Logging.ClearProviders();
         builder.Logging.AddConsole();
 
-        // Configure IChatClient using Azure OpenAI
+        // Configure IChatClient using Azure OpenAI or Google Gemini
         builder.Services.AddSingleton<IChatClient>(serviceProvider =>
         {
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();
             
-            // Try Azure OpenAI configuration first
+            // Try Google Gemini configuration first
+            var geminiApiKey = configuration["GoogleAI:ApiKey"];
+            var geminiModelId = configuration["GoogleAI:ModelId"] ?? "gemini-2.5-flash";
+            
+            if (!string.IsNullOrEmpty(geminiApiKey))
+            {
+                Console.WriteLine($"Configuring Google Gemini with model: {geminiModelId}");
+                var httpClient = new HttpClient();
+                return new BlogPostGenerator.Services.Gemini.GeminiChatClient(httpClient, geminiApiKey, geminiModelId);
+            }
+            
+            // Try Azure OpenAI configuration next
             var azureEndpoint = configuration["AzureOpenAI:Endpoint"];
             var azureDeploymentName = configuration["AzureOpenAI:DeploymentName"] ?? "gpt-4o-mini";
             var azureApiKey = configuration["AzureOpenAI:ApiKey"];
@@ -67,7 +78,7 @@ class Program
                 return new OpenAI.OpenAIClient(openAIApiKey).AsChatClient("gpt-4o-mini");
             }
 
-            throw new InvalidOperationException("No valid AI configuration found. Please configure Azure OpenAI or OpenAI settings.");
+            throw new InvalidOperationException("No valid AI configuration found. Please configure Google Gemini, Azure OpenAI, or OpenAI settings.");
         });
 
         // Register the blog generation service
