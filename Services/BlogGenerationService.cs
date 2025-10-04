@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using BlogPostGenerator.Models;
 using Microsoft.Extensions.AI;
@@ -25,6 +26,8 @@ public class BlogGenerationService
 
     public async Task RunAsync(string[] args)
     {
+        var totalStopwatch = Stopwatch.StartNew();
+        
         Console.WriteLine("=== Multi-Agent Blog Generation System ===\n");
 
         // Get blog post request from multiple sources
@@ -43,6 +46,7 @@ public class BlogGenerationService
         try
         {
             // Step 1: Research
+            var researchStopwatch = Stopwatch.StartNew();
             Console.WriteLine("📚 Step 1: Researching topic...");
             var researchMessages = new List<ChatMessage>
             {
@@ -62,10 +66,15 @@ public class BlogGenerationService
             };
 
             var researchResponse = await researchAgent.CompleteAsync(researchMessages);
+            researchStopwatch.Stop();
             var outline = researchResponse.Message.Text ?? "";
-            Console.WriteLine($"✅ Research completed. Outline length: {outline.Length} characters\n");
+            
+            _logger.LogInformation("Research agent completed in {ElapsedTime} ms ({ElapsedTimeFormatted})", 
+                researchStopwatch.ElapsedMilliseconds, FormatElapsedTime(researchStopwatch.Elapsed));
+            Console.WriteLine($"✅ Research completed in {FormatElapsedTime(researchStopwatch.Elapsed)}. Outline length: {outline.Length} characters\n");
 
             // Step 2: Write content
+            var writerStopwatch = Stopwatch.StartNew();
             Console.WriteLine("✍️ Step 2: Writing content...");
             var writeMessages = new List<ChatMessage>
             {
@@ -85,10 +94,15 @@ public class BlogGenerationService
             };
 
             var writeResponse = await writerAgent.CompleteAsync(writeMessages);
+            writerStopwatch.Stop();
             var content = writeResponse.Message.Text ?? "";
-            Console.WriteLine($"✅ Content written. Length: {content.Length} characters\n");
+            
+            _logger.LogInformation("Content writer agent completed in {ElapsedTime} ms ({ElapsedTimeFormatted})", 
+                writerStopwatch.ElapsedMilliseconds, FormatElapsedTime(writerStopwatch.Elapsed));
+            Console.WriteLine($"✅ Content written in {FormatElapsedTime(writerStopwatch.Elapsed)}. Length: {content.Length} characters\n");
 
             // Step 3: Edit content
+            var editorStopwatch = Stopwatch.StartNew();
             Console.WriteLine("📝 Step 3: Editing content...");
             var editMessages = new List<ChatMessage>
             {
@@ -107,10 +121,15 @@ public class BlogGenerationService
             };
 
             var editResponse = await editorAgent.CompleteAsync(editMessages);
+            editorStopwatch.Stop();
             var editedContent = editResponse.Message.Text ?? "";
-            Console.WriteLine($"✅ Content edited. Length: {editedContent.Length} characters\n");
+            
+            _logger.LogInformation("Editor agent completed in {ElapsedTime} ms ({ElapsedTimeFormatted})", 
+                editorStopwatch.ElapsedMilliseconds, FormatElapsedTime(editorStopwatch.Elapsed));
+            Console.WriteLine($"✅ Content edited in {FormatElapsedTime(editorStopwatch.Elapsed)}. Length: {editedContent.Length} characters\n");
 
             // Step 4: Lint markdown
+            var linterStopwatch = Stopwatch.StartNew();
             Console.WriteLine("🔧 Step 4: Linting markdown...");
             var lintMessages = new List<ChatMessage>
             {
@@ -129,10 +148,15 @@ public class BlogGenerationService
             };
 
             var lintResponse = await linterAgent.CompleteAsync(lintMessages);
+            linterStopwatch.Stop();
             var lintedContent = lintResponse.Message.Text ?? "";
-            Console.WriteLine($"✅ Markdown linted. Length: {lintedContent.Length} characters\n");
+            
+            _logger.LogInformation("Markdown linter agent completed in {ElapsedTime} ms ({ElapsedTimeFormatted})", 
+                linterStopwatch.ElapsedMilliseconds, FormatElapsedTime(linterStopwatch.Elapsed));
+            Console.WriteLine($"✅ Markdown linted in {FormatElapsedTime(linterStopwatch.Elapsed)}. Length: {lintedContent.Length} characters\n");
 
             // Step 5: SEO optimization
+            var seoStopwatch = Stopwatch.StartNew();
             Console.WriteLine("🎯 Step 5: SEO optimization...");
             var seoMessages = new List<ChatMessage>
             {
@@ -151,8 +175,12 @@ public class BlogGenerationService
             };
 
             var seoResponse = await seoAgent.CompleteAsync(seoMessages);
+            seoStopwatch.Stop();
             var seoData = seoResponse.Message.Text ?? "";
-            Console.WriteLine($"✅ SEO optimization completed.\n");
+            
+            _logger.LogInformation("SEO agent completed in {ElapsedTime} ms ({ElapsedTimeFormatted})", 
+                seoStopwatch.ElapsedMilliseconds, FormatElapsedTime(seoStopwatch.Elapsed));
+            Console.WriteLine($"✅ SEO optimization completed in {FormatElapsedTime(seoStopwatch.Elapsed)}.\n");
 
             // Create final result
             var result = new BlogPostResult
@@ -171,14 +199,37 @@ public class BlogGenerationService
             var seoOutputPath = "blog-seo-data.json";
             await File.WriteAllTextAsync(seoOutputPath, seoData);
 
+            totalStopwatch.Stop();
+
+            // Log timing summary
+            var totalTimeMs = totalStopwatch.ElapsedMilliseconds;
+            _logger.LogInformation("Blog generation workflow completed. Total time: {TotalTime} ms ({TotalTimeFormatted}). " +
+                "Research: {ResearchTime} ms ({ResearchTimeFormatted}), Writer: {WriterTime} ms ({WriterTimeFormatted}), " +
+                "Editor: {EditorTime} ms ({EditorTimeFormatted}), Linter: {LinterTime} ms ({LinterTimeFormatted}), " +
+                "SEO: {SeoTime} ms ({SeoTimeFormatted})",
+                totalTimeMs, FormatElapsedTime(totalStopwatch.Elapsed),
+                researchStopwatch.ElapsedMilliseconds, FormatElapsedTime(researchStopwatch.Elapsed),
+                writerStopwatch.ElapsedMilliseconds, FormatElapsedTime(writerStopwatch.Elapsed),
+                editorStopwatch.ElapsedMilliseconds, FormatElapsedTime(editorStopwatch.Elapsed),
+                linterStopwatch.ElapsedMilliseconds, FormatElapsedTime(linterStopwatch.Elapsed),
+                seoStopwatch.ElapsedMilliseconds, FormatElapsedTime(seoStopwatch.Elapsed));
+
             Console.WriteLine($"🎉 Blog generation completed!");
             Console.WriteLine($"📄 Content saved to: {outputPath}");
             Console.WriteLine($"🎯 SEO data saved to: {seoOutputPath}");
             Console.WriteLine($"📊 Final content length: {result.Content.Length} characters");
+            Console.WriteLine($"⏱️ Total time: {FormatElapsedTime(totalStopwatch.Elapsed)}");
+            Console.WriteLine($"   └─ Research: {FormatElapsedTime(researchStopwatch.Elapsed)}");
+            Console.WriteLine($"   └─ Writing: {FormatElapsedTime(writerStopwatch.Elapsed)}");
+            Console.WriteLine($"   └─ Editing: {FormatElapsedTime(editorStopwatch.Elapsed)}");
+            Console.WriteLine($"   └─ Linting: {FormatElapsedTime(linterStopwatch.Elapsed)}");
+            Console.WriteLine($"   └─ SEO: {FormatElapsedTime(seoStopwatch.Elapsed)}");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error during blog generation");
+            totalStopwatch.Stop();
+            _logger.LogError(ex, "Error during blog generation after {ElapsedTime} ms ({ElapsedTimeFormatted})", 
+                totalStopwatch.ElapsedMilliseconds, FormatElapsedTime(totalStopwatch.Elapsed));
             Console.WriteLine($"❌ Error: {ex.Message}");
             throw;
         }
@@ -419,5 +470,28 @@ public class BlogGenerationService
             WordCount = wordCount,
             Tone = tone
         });
+    }
+
+    /// <summary>
+    /// Formats elapsed time as HH:mm:ss.fff with appropriate units
+    /// </summary>
+    private string FormatElapsedTime(TimeSpan elapsed)
+    {
+        if (elapsed.TotalHours >= 1)
+        {
+            return $"{elapsed:hh\\:mm\\:ss\\.fff} ({elapsed.TotalMilliseconds:F0} ms)";
+        }
+        else if (elapsed.TotalMinutes >= 1)
+        {
+            return $"{elapsed:mm\\:ss\\.fff} ({elapsed.TotalMilliseconds:F0} ms)";
+        }
+        else if (elapsed.TotalSeconds >= 1)
+        {
+            return $"{elapsed:ss\\.fff}s ({elapsed.TotalMilliseconds:F0} ms)";
+        }
+        else
+        {
+            return $"{elapsed.TotalMilliseconds:F0} ms";
+        }
     }
 }
