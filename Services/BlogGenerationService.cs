@@ -51,14 +51,16 @@ public class BlogGenerationService
             var researchMessages = new List<ChatMessage>
             {
                 new(ChatRole.System, """
-                You are a research specialist. Your role is to:
-                1. Research topics thoroughly and create comprehensive outlines
-                2. Gather key facts, statistics, and insights
-                3. Identify target audience needs and pain points
-                4. Suggest compelling title options
-                5. Structure content logically with clear sections
-                
-                Always provide structured, well-organized research that serves as a foundation for high-quality blog content.
+                You are a research specialist.
+
+                Create a comprehensive outline for a blog post including:
+                1. Compelling title suggestions (3 options)
+                2. Main sections with bullet points
+                3. Key facts and statistics to include
+                4. Potential quotes or expert insights
+                5. Relevant examples or case studies
+
+                Format your response as structured text that can be easily parsed.
                 """),
                 new(ChatRole.User,
                     $"Research the topic '{blogRequest.Topic}' with focus on: {blogRequest.Description}. " +
@@ -79,14 +81,17 @@ public class BlogGenerationService
             var writeMessages = new List<ChatMessage>
             {
                 new(ChatRole.System, """
-                You are an expert content writer. Your role is to:
-                1. Transform research outlines into engaging blog posts
-                2. Write clear, compelling, and valuable content
-                3. Use appropriate tone and style for the target audience
-                4. Include engaging introductions and strong conclusions
-                5. Format content in clean markdown
-                
-                Focus on creating content that provides real value to readers and maintains engagement throughout.
+                You are an expert content writer. Using the following research outline, write a compelling blog post.
+
+                REQUIREMENTS:
+                - Include an engaging introduction
+                - Use clear headings and subheadings
+                - Add relevant examples and explanations
+                - Include a strong conclusion with call-to-action
+                - Write in markdown format
+                - Do NOT wrap the output in markdown code blocks (```markdown or ```)
+
+                Focus on creating valuable, engaging content that provides real insights to readers.
                 """),
                 new(ChatRole.User,
                     $"Write a {blogRequest.WordCount}-word blog post based on this outline: {outline}. " +
@@ -107,14 +112,24 @@ public class BlogGenerationService
             var editMessages = new List<ChatMessage>
             {
                 new(ChatRole.System, """
-                You are a professional editor. Your role is to:
-                1. Review content for grammar, spelling, and clarity
-                2. Improve readability and flow
-                3. Ensure consistency in tone and style
-                4. Enhance structure and organization
-                5. Maintain the original intent while improving quality
-                
-                Provide polished, publication-ready content that maintains the author's voice while ensuring professional quality.
+                You are a professional editor. Review the blog post content provided by user.
+
+                Check for:
+                1. Grammar and spelling errors
+                2. Clarity and readability
+                3. Logical flow and structure
+                4. Consistency in tone and style
+                5. Factual accuracy (flag any questionable claims)
+
+                Return the improved version of the blog post, maintaining the original structure but fixing any issues you find.
+                Also provide a brief note about changes made.
+
+                Format:
+                EDITED CONTENT:
+                [improved content here]
+
+                EDITOR NOTES:
+                [brief summary of changes made]
                 """),
                 new(ChatRole.User,
                     $"Review and edit this blog post for quality and consistency: {content}")
@@ -134,14 +149,28 @@ public class BlogGenerationService
             var lintMessages = new List<ChatMessage>
             {
                 new(ChatRole.System, """
-                You are a markdown linter and formatter. Your role is to:
-                1. Fix markdown formatting issues and inconsistencies
-                2. Ensure proper header hierarchy and structure
-                3. Format code blocks, lists, and links correctly
-                4. Remove unnecessary whitespace and formatting errors
-                5. Ensure the content follows markdown best practices
-                
-                Return clean, properly formatted markdown that passes linting standards.
+                You are a markdown linter and formatter. Review the markdown content provided by the user and fix any linting issues.
+
+                Check for and fix these markdown linting issues:
+                1. **Headers**: Ensure proper header hierarchy (h1 → h2 → h3, no skipping levels)
+                2. **Spacing**: Add proper blank lines around headers, code blocks, and lists
+                3. **Lists**: Consistent indentation and formatting for ordered/unordered lists
+                4. **Links**: Proper link formatting [text](url) and reference-style links
+                5. **Code blocks**: Proper fencing with language specification where appropriate
+                6. **Emphasis**: Consistent use of *italic* and **bold** formatting
+                7. **Line length**: Break overly long lines at natural points (aim for ~80-100 characters)
+                8. **Trailing spaces**: Remove unnecessary trailing whitespace
+                9. **Empty lines**: Remove multiple consecutive empty lines
+                10. **Special characters**: Proper escaping of markdown special characters in text
+
+                Additional formatting improvements:
+                - Ensure code snippets have proper syntax highlighting language tags
+                - Make sure table formatting is consistent and aligned
+                - Verify that blockquotes use proper > formatting
+                - Check that horizontal rules use consistent syntax (---)
+                - Return ONLY the corrected markdown content. Do not include explanations or notes about what was changed.
+                - Do NOT wrap the output in markdown code blocks (```markdown or ```).
+                - The output should be clean, properly formatted markdown that passes standard linting rules.
                 """),
                 new(ChatRole.User,
                     $"Lint and fix markdown formatting issues in this content: {editedContent}")
@@ -161,14 +190,17 @@ public class BlogGenerationService
             var seoMessages = new List<ChatMessage>
             {
                 new(ChatRole.System, """
-                You are an SEO specialist. Your role is to:
-                1. Analyze content for SEO optimization opportunities
-                2. Generate compelling meta descriptions and titles
-                3. Identify primary and secondary keywords
-                4. Create social media descriptions
-                5. Provide SEO-friendly content recommendations
-                
-                Return structured JSON data with SEO metadata and optimization suggestions.
+                You are an SEO specialist. Analyze the blog post provided by the user and provide SEO optimization.
+
+                Provide the following in JSON format:
+                - SEO-optimized title (60 characters or less)
+                - Meta description (150-160 characters)
+                - Suggested tags/keywords (5-10 relevant tags)
+                - Brief summary (2-3 sentences)
+                - Any suggestions for content improvements
+                - Do NOT wrap the output in markdown code blocks (```markdown or ```json or ```).
+
+                Format as valid JSON with keys: title, metaDescription, tags, summary, suggestions
                 """),
                 new(ChatRole.User,
                     $"Optimize this blog post for SEO and create metadata: {lintedContent}. Topic: {blogRequest.Topic}")
@@ -192,9 +224,28 @@ public class BlogGenerationService
                 Tags = ExtractTags(seoData)
             };
 
+            // Create markdown content
+            var markdownContent = $"""
+            ---
+            layout: post
+            title: {result.Title}
+            image: img/banner.jpg
+            author: Dushyant
+            date: {DateTime.Now:yyyy-MM-ddTHH:mm:ss.fffZ}
+            tags: [{string.Join(", ", result.Tags.Select(tag => $"\"{tag}\""))}]
+            draft: false
+            ---
+            <div className="seo-hidden">
+            {result.MetaDescription}
+            </div>
+
+            {result.Content}
+            """;
+
             // Save to file
-            var outputPath = "generated-blog-post.md";
-            await File.WriteAllTextAsync(outputPath, result.Content);
+            var fileName = $"{DateTime.Now:yyyy-MM-dd}-{result.Title.Replace(" ", "-").Replace(":", "").Replace("?", "").Replace("/", "-").Replace("\\", "-").ToLower()}.md";
+            var filePath = Path.Combine(Directory.GetCurrentDirectory(), fileName);
+            await File.WriteAllTextAsync(filePath, markdownContent);
 
             var seoOutputPath = "blog-seo-data.json";
             await File.WriteAllTextAsync(seoOutputPath, seoData);
@@ -204,7 +255,7 @@ public class BlogGenerationService
             // Log timing summary
             var totalTimeMs = totalStopwatch.ElapsedMilliseconds;
             _logger.LogInformation("🎉 Blog generation completed!");
-            _logger.LogInformation("📄 Content saved to: {OutputPath}", outputPath);
+            _logger.LogInformation("📄 Content saved to: {OutputPath}", filePath);
             _logger.LogInformation("🎯 SEO data saved to: {SeoOutputPath}", seoOutputPath);
             _logger.LogInformation("📊 Final content length: {ContentLength} characters", result.Content.Length);
             _logger.LogInformation("⏱️ Total time: {TotalTime}", FormatElapsedTime(totalStopwatch.Elapsed));
