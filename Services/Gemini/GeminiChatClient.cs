@@ -33,6 +33,7 @@ public class GeminiChatClient : IChatClient
         ChatOptions? options = null, 
         CancellationToken cancellationToken = default)
     {
+        // doc reference https://ai.google.dev/gemini-api/docs/quickstart#make-first-request
         var request = CreateGeminiRequest(chatMessages, options);
         var jsonContent = JsonSerializer.Serialize(request, _jsonOptions);
         
