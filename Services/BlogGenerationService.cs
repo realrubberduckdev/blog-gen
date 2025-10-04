@@ -323,30 +323,16 @@ public class BlogGenerationService
         try
         {
             var jsonDoc = JsonDocument.Parse(seoData);
-            if (jsonDoc.RootElement.TryGetProperty("keywords", out var keywords))
+            if (jsonDoc.RootElement.TryGetProperty("tags", out var tagsJsonArray))
             {
                 var tags = new List<string>();
-                if (keywords.ValueKind == JsonValueKind.Array)
+                if (tagsJsonArray.ValueKind == JsonValueKind.Array)
                 {
-                    foreach (var keyword in keywords.EnumerateArray())
+                    foreach (var tag in tagsJsonArray.EnumerateArray())
                     {
-                        var tag = keyword.GetString();
-                        if (!string.IsNullOrEmpty(tag))
-                            tags.Add(tag);
-                    }
-                }
-                return tags;
-            }
-            if (jsonDoc.RootElement.TryGetProperty("primaryKeywords", out var primaryKeywords))
-            {
-                var tags = new List<string>();
-                if (primaryKeywords.ValueKind == JsonValueKind.Array)
-                {
-                    foreach (var keyword in primaryKeywords.EnumerateArray())
-                    {
-                        var tag = keyword.GetString();
-                        if (!string.IsNullOrEmpty(tag))
-                            tags.Add(tag);
+                        var tagValue = tag.GetString();
+                        if (!string.IsNullOrEmpty(tagValue))
+                            tags.Add(tagValue);
                     }
                 }
                 return tags;
