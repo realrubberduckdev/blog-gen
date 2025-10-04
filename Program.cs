@@ -1,4 +1,7 @@
-﻿using BlogPostGenerator.Agents;
+﻿using System.Text.Json;
+using Azure.AI.OpenAI;
+using Azure.Identity;
+using System.ClientModel;
 using BlogPostGenerator.Models;
 using BlogPostGenerator.Services;
 using Microsoft.Extensions.AI;
@@ -6,7 +9,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System.Text.Json;
 
 namespace BlogPostGenerator;
 
@@ -29,21 +31,53 @@ class Program
         builder.Logging.ClearProviders();
         builder.Logging.AddConsole();
 
-        // Configure AI Chat Client
-        ConfigureChatClient(builder);
+        // Configure IChatClient using Azure OpenAI
+        builder.Services.AddSingleton<IChatClient>(serviceProvider =>
+        {
+            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            
+            // Try Azure OpenAI configuration first
+            var azureEndpoint = configuration["AzureOpenAI:Endpoint"];
+            var azureDeploymentName = configuration["AzureOpenAI:DeploymentName"] ?? "gpt-4o-mini";
+            var azureApiKey = configuration["AzureOpenAI:ApiKey"];
 
-        // Register agents
-        builder.Services.AddTransient<ResearchAgent>();
-        builder.Services.AddTransient<ContentWriterAgent>();
-        builder.Services.AddTransient<EditorAgent>();
-        builder.Services.AddTransient<MarkdownLinterAgent>();
-        builder.Services.AddTransient<SEOAgent>();
-        builder.Services.AddTransient<BlogPostOrchestrator>();
+            if (!string.IsNullOrEmpty(azureEndpoint))
+            {
+                Console.WriteLine($"Configuring Azure OpenAI with endpoint: {azureEndpoint}");
+                
+                if (!string.IsNullOrEmpty(azureApiKey))
+                {
+                    // Use API key authentication
+                    return new AzureOpenAIClient(new Uri(azureEndpoint), new ApiKeyCredential(azureApiKey))
+                        .AsChatClient(azureDeploymentName);
+                }
+                else
+                {
+                    // Use Azure CLI credentials (default)
+                    return new AzureOpenAIClient(new Uri(azureEndpoint), new DefaultAzureCredential())
+                        .AsChatClient(azureDeploymentName);
+                }
+            }
+
+            // Fallback to OpenAI
+            var openAIApiKey = configuration["OpenAI:ApiKey"];
+            if (!string.IsNullOrEmpty(openAIApiKey))
+            {
+                Console.WriteLine("Configuring OpenAI");
+                return new OpenAI.OpenAIClient(openAIApiKey).AsChatClient("gpt-4o-mini");
+            }
+
+            throw new InvalidOperationException("No valid AI configuration found. Please configure Azure OpenAI or OpenAI settings.");
+        });
+
+        // Register the blog generation service
+        builder.Services.AddTransient<BlogGenerationService>();
 
         var host = builder.Build();
 
         // Run the application
-        await RunBlogGenerationAsync(host, args);
+        var blogService = host.Services.GetRequiredService<BlogGenerationService>();
+        await blogService.RunAsync(args);
     }
 
     private static void ConfigureChatClient(HostApplicationBuilder builder)
