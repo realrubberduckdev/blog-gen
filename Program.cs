@@ -57,7 +57,7 @@ class Program
                 return new LocalChatClient(
                     new HttpClient()
                     {
-                        Timeout = TimeSpan.FromMinutes(10)
+                        Timeout = TimeSpan.FromMinutes(10) // because local models can be slow
                     },
                     localModelName,
                     localEndpoint);
