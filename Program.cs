@@ -32,7 +32,7 @@ class Program
         builder.Logging.AddConsole();
 
         // Configure IChatClient using Azure OpenAI or Google Gemini
-        builder.Services.AddSingleton<IChatClient>(serviceProvider =>
+        builder.Services.AddSingleton(serviceProvider =>
         {
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();
             var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
@@ -54,7 +54,13 @@ class Program
                 }
 
                 logger.LogInformation("Configuring for local model at: {LocalEndpoint}", localEndpoint);
-                return new BlogPostGenerator.Services.LocalChatClient(new HttpClient(), localModelName, localEndpoint);
+                return new LocalChatClient(
+                    new HttpClient()
+                    {
+                        Timeout = TimeSpan.FromMinutes(10)
+                    },
+                    localModelName,
+                    localEndpoint);
             }
 
             // Try Google Gemini configuration
@@ -65,7 +71,7 @@ class Program
             {
                 logger.LogInformation("Configuring Google Gemini with model: {GeminiModelId}", geminiModelId);
                 var httpClient = new HttpClient();
-                return new BlogPostGenerator.Services.Gemini.GeminiChatClient(httpClient, geminiApiKey, geminiModelId);
+                return new Services.Gemini.GeminiChatClient(httpClient, geminiApiKey, geminiModelId);
             }
 
             // Try Azure OpenAI configuration next

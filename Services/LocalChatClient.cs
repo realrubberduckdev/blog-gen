@@ -39,7 +39,7 @@ public class LocalChatClient : IChatClient
         
         using var httpContent = new StringContent(jsonContent, Encoding.UTF8, "application/json");
         
-        var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/v1/chat/completions")
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/engines/llama.cpp/v1/chat/completions")
         {
             Content = httpContent
         };
