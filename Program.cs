@@ -35,6 +35,7 @@ class Program
         builder.Services.AddSingleton<IChatClient>(serviceProvider =>
         {
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 
             // Try local model configuration first
             var useLocal = configuration.GetValue<bool>("LocalModel:UseLocal");
@@ -46,13 +47,13 @@ class Program
 
                 if (string.IsNullOrEmpty(localEndpoint) || string.IsNullOrEmpty(localModelName))
                 {
-                    Console.WriteLine("Error: Local model configuration is incomplete.");
-                    Console.WriteLine($"Endpoint: {(string.IsNullOrEmpty(localEndpoint) ? "missing" : "present")}");
-                    Console.WriteLine($"ModelName: {(string.IsNullOrEmpty(localModelName) ? "missing" : "present")}");
+                    logger.LogError("Error: Local model configuration is incomplete.");
+                    logger.LogError("Endpoint: {EndpointStatus}", string.IsNullOrEmpty(localEndpoint) ? "missing" : "present");
+                    logger.LogError("ModelName: {ModelNameStatus}", string.IsNullOrEmpty(localModelName) ? "missing" : "present");
                     Environment.Exit(1);
                 }
 
-                Console.WriteLine($"Configuring for local model at: {localEndpoint}");
+                logger.LogInformation("Configuring for local model at: {LocalEndpoint}", localEndpoint);
                 return new BlogPostGenerator.Services.LocalChatClient(new HttpClient(), localModelName, localEndpoint);
             }
 
@@ -62,7 +63,7 @@ class Program
 
             if (!string.IsNullOrEmpty(geminiApiKey))
             {
-                Console.WriteLine($"Configuring Google Gemini with model: {geminiModelId}");
+                logger.LogInformation("Configuring Google Gemini with model: {GeminiModelId}", geminiModelId);
                 var httpClient = new HttpClient();
                 return new BlogPostGenerator.Services.Gemini.GeminiChatClient(httpClient, geminiApiKey, geminiModelId);
             }
@@ -74,7 +75,7 @@ class Program
 
             if (!string.IsNullOrEmpty(azureEndpoint))
             {
-                Console.WriteLine($"Configuring Azure OpenAI with endpoint: {azureEndpoint}");
+                logger.LogInformation("Configuring Azure OpenAI with endpoint: {AzureEndpoint}", azureEndpoint);
 
                 if (!string.IsNullOrEmpty(azureApiKey))
                 {
@@ -94,7 +95,7 @@ class Program
             var openAIApiKey = configuration["OpenAI:ApiKey"];
             if (!string.IsNullOrEmpty(openAIApiKey))
             {
-                Console.WriteLine("Configuring OpenAI");
+                logger.LogInformation("Configuring OpenAI");
                 return new OpenAI.OpenAIClient(openAIApiKey).AsChatClient("gpt-4o-mini");
             }
 
