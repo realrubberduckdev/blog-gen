@@ -35,8 +35,28 @@ class Program
         builder.Services.AddSingleton<IChatClient>(serviceProvider =>
         {
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+
+            // Try local model configuration first
+            var useLocal = configuration.GetValue<bool>("LocalModel:UseLocal");
+            if (useLocal)
+            {
+                var localEndpoint = configuration["LocalModel:Endpoint"];
+                var localModelName = configuration["LocalModel:ModelName"];
+                var localApiKey = configuration["LocalModel:ApiKey"];
+
+                if (string.IsNullOrEmpty(localEndpoint) || string.IsNullOrEmpty(localModelName))
+                {
+                    Console.WriteLine("Error: Local model configuration is incomplete.");
+                    Console.WriteLine($"Endpoint: {(string.IsNullOrEmpty(localEndpoint) ? "missing" : "present")}");
+                    Console.WriteLine($"ModelName: {(string.IsNullOrEmpty(localModelName) ? "missing" : "present")}");
+                    Environment.Exit(1);
+                }
+
+                Console.WriteLine($"Configuring for local model at: {localEndpoint}");
+                return new BlogPostGenerator.Services.LocalChatClient(new HttpClient(), localModelName, localEndpoint);
+            }
             
-            // Try Google Gemini configuration first
+            // Try Google Gemini configuration
             var geminiApiKey = configuration["GoogleAI:ApiKey"];
             var geminiModelId = configuration["GoogleAI:ModelId"] ?? "gemini-2.5-flash";
             
