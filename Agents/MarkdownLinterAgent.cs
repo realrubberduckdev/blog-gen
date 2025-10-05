@@ -12,7 +12,7 @@ public class MarkdownLinterAgent : BaseAgent, IAgent
     public string Name => Constants.Agents.MarkdownLinter.Name;
     public string Description => Constants.Agents.MarkdownLinter.Description;
 
-    public MarkdownLinterAgent(IChatClient chatClient, ILogger<MarkdownLinterAgent> logger) 
+    public MarkdownLinterAgent(IChatClient chatClient, ILogger<MarkdownLinterAgent> logger)
         : base(chatClient, logger)
     {
     }
@@ -71,27 +71,31 @@ public class MarkdownLinterAgent : BaseAgent, IAgent
         CancellationToken cancellationToken = default)
     {
         var prompt = $"""
-        You are a markdown validator. Analyze the following markdown content and provide a brief validation report:
+        You are a markdown validator. Review the markdown content provided by the user and fix any linting issues.
 
         CONTENT TO VALIDATE:
         {content}
 
-        Check for these potential issues:
-        1. Header hierarchy problems (skipped levels, inconsistent structure)
-        2. Formatting inconsistencies (mixed emphasis styles, irregular spacing)
-        3. Link issues (broken syntax, missing alt text for images)
-        4. Code block problems (missing language tags, inconsistent fencing)
-        5. List formatting issues (inconsistent bullets, poor indentation)
-        6. Accessibility concerns (missing alt text, poor heading structure)
+        Check for and fix these markdown linting issues:
+        1. **Headers**: Ensure proper header hierarchy (h1 → h2 → h3, no skipping levels)
+        2. **Spacing**: Add proper blank lines around headers, code blocks, and lists
+        3. **Lists**: Consistent indentation and formatting for ordered/unordered lists
+        4. **Links**: Proper link formatting [text](url) and reference-style links
+        5. **Code blocks**: Proper fencing with language specification where appropriate
+        6. **Emphasis**: Consistent use of *italic* and **bold** formatting
+        7. **Line length**: Break overly long lines at natural points (aim for ~80-100 characters)
+        8. **Trailing spaces**: Remove unnecessary trailing whitespace
+        9. **Empty lines**: Remove multiple consecutive empty lines
+        10. **Special characters**: Proper escaping of markdown special characters in text
 
-        Provide a concise report in this format:
-        VALIDATION STATUS: [PASS/ISSUES_FOUND]
-        
-        ISSUES DETECTED:
-        - [List any issues found, or "None" if content is clean]
-        
-        RECOMMENDATIONS:
-        - [Brief suggestions for improvement, or "Content follows markdown best practices" if clean]
+        Additional formatting improvements:
+        - Ensure code snippets have proper syntax highlighting language tags
+        - Make sure table formatting is consistent and aligned
+        - Verify that blockquotes use proper > formatting
+        - Check that horizontal rules use consistent syntax (---)
+        - Return ONLY the corrected markdown content. Do not include explanations or notes about what was changed.
+        - Do NOT wrap the output in markdown code blocks (```markdown or ```).
+        - The output should be clean, properly formatted markdown that passes standard linting rules.
         """;
 
         _logger.LogInformation("Starting markdown validation");

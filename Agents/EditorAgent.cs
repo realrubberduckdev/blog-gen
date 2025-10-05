@@ -12,7 +12,7 @@ public class EditorAgent : BaseAgent, IAgent
     public string Name => Constants.Agents.Editor.Name;
     public string Description => Constants.Agents.Editor.Description;
 
-    public EditorAgent(IChatClient chatClient, ILogger<EditorAgent> logger) 
+    public EditorAgent(IChatClient chatClient, ILogger<EditorAgent> logger)
         : base(chatClient, logger)
     {
     }
@@ -29,24 +29,24 @@ public class EditorAgent : BaseAgent, IAgent
     {
         var prompt = $"""
         You are a professional editor. Review the following blog post for:
-        
+
         CONTENT TO REVIEW:
         {content}
-        
+
         Check for:
         1. Grammar and spelling errors
         2. Clarity and readability
         3. Logical flow and structure
         4. Consistency in tone and style
         5. Factual accuracy (flag any questionable claims)
-        
+
         Return the improved version of the blog post, maintaining the original structure but fixing any issues you find.
         Also provide a brief note about changes made.
-        
-        Format: 
+
+        Format:
         EDITED CONTENT:
         [improved content here]
-        
+
         EDITOR NOTES:
         [brief summary of changes made]
         """;
