@@ -26,7 +26,7 @@ cd blog-gen
 
 # Configure API key (choose one)
 # Google Gemini (recommended)
-dotnet user-secrets set "GoogleGemini:ApiKey" "your-gemini-key"
+dotnet user-secrets set "GoogleAI:ApiKey" "your-gemini-key"
 
 # Azure OpenAI
 dotnet user-secrets set "AzureOpenAI:ApiKey" "your-azure-key"
