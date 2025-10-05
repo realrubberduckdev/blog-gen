@@ -128,7 +128,7 @@ See [GEMINI_SETUP.md](GEMINI_SETUP.md) for detailed setup instructions.
 {
   "LocalModel": {
     "Endpoint": "http://localhost:11434",
-    "ModelName": "llama3.1:8b",
+    "ModelName": "ai/gemma3",
     "ApiKey": "",
     "UseLocal": true
   }
