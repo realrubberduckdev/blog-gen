@@ -9,8 +9,8 @@ namespace BlogPostGenerator.Agents;
 /// </summary>
 public class ResearchAgent : BaseAgent, IAgent
 {
-    public string Name => "Research Agent";
-    public string Description => "Creates topic outlines and gathers information";
+    public string Name => Constants.Agents.Research.Name;
+    public string Description => Constants.Agents.Research.Description;
 
     public ResearchAgent(IChatClient chatClient, ILogger<ResearchAgent> logger) 
         : base(chatClient, logger)

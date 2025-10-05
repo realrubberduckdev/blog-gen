@@ -9,8 +9,8 @@ namespace BlogPostGenerator.Agents;
 /// </summary>
 public class MarkdownLinterAgent : BaseAgent, IAgent
 {
-    public string Name => "Markdown Linter Agent";
-    public string Description => "Ensures proper markdown formatting standards";
+    public string Name => Constants.Agents.MarkdownLinter.Name;
+    public string Description => Constants.Agents.MarkdownLinter.Description;
 
     public MarkdownLinterAgent(IChatClient chatClient, ILogger<MarkdownLinterAgent> logger) 
         : base(chatClient, logger)

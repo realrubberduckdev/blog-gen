@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
 using BlogPostGenerator.Models;
+using BlogPostGenerator.Framework;
+using BlogPostGenerator.Agents;
+using BlogPostGenerator.Services.AgentProvider;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -12,14 +15,14 @@ namespace BlogPostGenerator.Services;
 /// </summary>
 public class BlogGenerationService
 {
-    private readonly IChatClient _client;
+    private readonly IAgentRegistry _agentRegistry;
     private readonly IConfiguration _configuration;
     private readonly ILogger<BlogGenerationService> _logger;
     private static readonly JsonSerializerOptions s_jsonOptions = new() { WriteIndented = true };
 
-    public BlogGenerationService(IChatClient client, IConfiguration configuration, ILogger<BlogGenerationService> logger)
+    public BlogGenerationService(IAgentRegistry agentRegistry, IConfiguration configuration, ILogger<BlogGenerationService> logger)
     {
-        _client = client;
+        _agentRegistry = agentRegistry;
         _configuration = configuration;
         _logger = logger;
     }
@@ -36,40 +39,25 @@ public class BlogGenerationService
         _logger.LogInformation("🚀 Starting blog generation for: '{Topic}'", blogRequest.Topic);
         _logger.LogInformation("📝 Description: {Description}", blogRequest.Description);
 
-        // Create specialized agents (use the IChatClient directly with system messages)
-        var researchAgent = _client;
-        var writerAgent = _client;
-        var editorAgent = _client;
-        var linterAgent = _client;
-        var seoAgent = _client;
+        // Get specialized agents from the registry - type-safe, no casting needed
+        var researchAgent = _agentRegistry.GetAgent<ResearchAgent>();
+        var writerAgent = _agentRegistry.GetAgent<ContentWriterAgent>();
+        var editorAgent = _agentRegistry.GetAgent<EditorAgent>();
+        var linterAgent = _agentRegistry.GetAgent<MarkdownLinterAgent>();
+        var seoAgent = _agentRegistry.GetAgent<SEOAgent>();
 
         try
         {
             // Step 1: Research
             var researchStopwatch = Stopwatch.StartNew();
             _logger.LogInformation("📚 Step 1: Researching topic...");
-            var researchMessages = new List<ChatMessage>
-            {
-                new(ChatRole.System, """
-                You are a research specialist.
-
-                Create a comprehensive outline for a blog post including:
-                1. Compelling title suggestions (3 options)
-                2. Main sections with bullet points
-                3. Key facts and statistics to include
-                4. Potential quotes or expert insights
-                5. Relevant examples or case studies
-
-                Format your response as structured text that can be easily parsed.
-                """),
-                new(ChatRole.User,
-                    $"Research the topic '{blogRequest.Topic}' with focus on: {blogRequest.Description}. " +
-                    $"Target audience: {blogRequest.TargetAudience}. Create a comprehensive outline.")
-            };
-
-            var researchResponse = await researchAgent.CompleteAsync(researchMessages);
+            
+            var outline = await researchAgent.ResearchAndOutlineAsync(
+                blogRequest.Topic,
+                blogRequest.Description,
+                blogRequest.TargetAudience);
+            
             researchStopwatch.Stop();
-            var outline = researchResponse.Message.Text ?? "";
             _logger.LogInformation(
                 "✅ Research agent completed in {ElapsedTime}. Outline length: {length} characters\n",
                 FormatElapsedTime(researchStopwatch.Elapsed),
@@ -78,29 +66,13 @@ public class BlogGenerationService
             // Step 2: Write content
             var writerStopwatch = Stopwatch.StartNew();
             _logger.LogInformation("✍️ Step 2: Writing content...");
-            var writeMessages = new List<ChatMessage>
-            {
-                new(ChatRole.System, """
-                You are an expert content writer. Using the following research outline, write a compelling blog post.
-
-                REQUIREMENTS:
-                - Include an engaging introduction
-                - Use clear headings and subheadings
-                - Add relevant examples and explanations
-                - Include a strong conclusion with call-to-action
-                - Write in markdown format
-                - Do NOT wrap the output in markdown code blocks (```markdown or ```)
-
-                Focus on creating valuable, engaging content that provides real insights to readers.
-                """),
-                new(ChatRole.User,
-                    $"Write a {blogRequest.WordCount}-word blog post based on this outline: {outline}. " +
-                    $"Use a {blogRequest.Tone} tone and write in markdown format.")
-            };
-
-            var writeResponse = await writerAgent.CompleteAsync(writeMessages);
+            
+            var content = await writerAgent.WriteContentAsync(
+                outline,
+                blogRequest.Tone,
+                blogRequest.WordCount);
+            
             writerStopwatch.Stop();
-            var content = writeResponse.Message.Text ?? "";
             _logger.LogInformation(
                 "✅ Content written in {ElapsedTime}. Content length: {length} characters\n",
                 FormatElapsedTime(writerStopwatch.Elapsed),
@@ -109,35 +81,10 @@ public class BlogGenerationService
             // Step 3: Edit content
             var editorStopwatch = Stopwatch.StartNew();
             _logger.LogInformation("📝 Step 3: Editing content...");
-            var editMessages = new List<ChatMessage>
-            {
-                new(ChatRole.System, """
-                You are a professional editor. Review the blog post content provided by user.
-
-                Check for:
-                1. Grammar and spelling errors
-                2. Clarity and readability
-                3. Logical flow and structure
-                4. Consistency in tone and style
-                5. Factual accuracy (flag any questionable claims)
-
-                Return the improved version of the blog post, maintaining the original structure but fixing any issues you find.
-                Also provide a brief note about changes made.
-
-                Format:
-                EDITED CONTENT:
-                [improved content here]
-
-                EDITOR NOTES:
-                [brief summary of changes made]
-                """),
-                new(ChatRole.User,
-                    $"Review and edit this blog post for quality and consistency: {content}")
-            };
-
-            var editResponse = await editorAgent.CompleteAsync(editMessages);
+            
+            var editedContent = await editorAgent.ReviewAndEditAsync(content);
+            
             editorStopwatch.Stop();
-            var editedContent = editResponse.Message.Text ?? "";
             _logger.LogInformation(
                 "✅ Content edited in {ElapsedTime}. Content length: {length} characters\n",
                 FormatElapsedTime(editorStopwatch.Elapsed),
@@ -146,39 +93,10 @@ public class BlogGenerationService
             // Step 4: Lint markdown
             var linterStopwatch = Stopwatch.StartNew();
             _logger.LogInformation("🔧 Step 4: Linting markdown...");
-            var lintMessages = new List<ChatMessage>
-            {
-                new(ChatRole.System, """
-                You are a markdown linter and formatter. Review the markdown content provided by the user and fix any linting issues.
-
-                Check for and fix these markdown linting issues:
-                1. **Headers**: Ensure proper header hierarchy (h1 → h2 → h3, no skipping levels)
-                2. **Spacing**: Add proper blank lines around headers, code blocks, and lists
-                3. **Lists**: Consistent indentation and formatting for ordered/unordered lists
-                4. **Links**: Proper link formatting [text](url) and reference-style links
-                5. **Code blocks**: Proper fencing with language specification where appropriate
-                6. **Emphasis**: Consistent use of *italic* and **bold** formatting
-                7. **Line length**: Break overly long lines at natural points (aim for ~80-100 characters)
-                8. **Trailing spaces**: Remove unnecessary trailing whitespace
-                9. **Empty lines**: Remove multiple consecutive empty lines
-                10. **Special characters**: Proper escaping of markdown special characters in text
-
-                Additional formatting improvements:
-                - Ensure code snippets have proper syntax highlighting language tags
-                - Make sure table formatting is consistent and aligned
-                - Verify that blockquotes use proper > formatting
-                - Check that horizontal rules use consistent syntax (---)
-                - Return ONLY the corrected markdown content. Do not include explanations or notes about what was changed.
-                - Do NOT wrap the output in markdown code blocks (```markdown or ```).
-                - The output should be clean, properly formatted markdown that passes standard linting rules.
-                """),
-                new(ChatRole.User,
-                    $"Lint and fix markdown formatting issues in this content: {editedContent}")
-            };
-
-            var lintResponse = await linterAgent.CompleteAsync(lintMessages);
+            
+            var lintedContent = await linterAgent.LintAndFixMarkdownAsync(editedContent);
+            
             linterStopwatch.Stop();
-            var lintedContent = lintResponse.Message.Text ?? "";
             _logger.LogInformation(
                 "✅ Markdown linted in {ElapsedTime}. Content length: {length} characters\n",
                 FormatElapsedTime(linterStopwatch.Elapsed),
@@ -187,28 +105,10 @@ public class BlogGenerationService
             // Step 5: SEO optimization
             var seoStopwatch = Stopwatch.StartNew();
             _logger.LogInformation("🎯 Step 5: SEO optimization...");
-            var seoMessages = new List<ChatMessage>
-            {
-                new(ChatRole.System, """
-                You are an SEO specialist. Analyze the blog post provided by the user and provide SEO optimization.
-
-                Provide the following in JSON format:
-                - SEO-optimized title (60 characters or less)
-                - Meta description (150-160 characters)
-                - Suggested tags/keywords (5-10 relevant tags)
-                - Brief summary (2-3 sentences)
-                - Any suggestions for content improvements
-                - Do NOT wrap the output in markdown code blocks (```markdown or ```json or ```).
-
-                Format as valid JSON with keys: title, metaDescription, tags, summary, suggestions
-                """),
-                new(ChatRole.User,
-                    $"Optimize this blog post for SEO and create metadata: {lintedContent}. Topic: {blogRequest.Topic}")
-            };
-
-            var seoResponse = await seoAgent.CompleteAsync(seoMessages);
+            
+            var seoData = await seoAgent.OptimizeForSEOAsync(lintedContent, blogRequest.Topic);
+            
             seoStopwatch.Stop();
-            var seoData = seoResponse.Message.Text ?? "";
             _logger.LogInformation(
                 "✅ SEO optimization completed in {ElapsedTime}. Content length: {length} characters\n",
                 FormatElapsedTime(seoStopwatch.Elapsed),

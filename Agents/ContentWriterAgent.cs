@@ -9,8 +9,8 @@ namespace BlogPostGenerator.Agents;
 /// </summary>
 public class ContentWriterAgent : BaseAgent, IAgent
 {
-    public string Name => "Content Writer Agent";
-    public string Description => "Writes the main blog content from outlines";
+    public string Name => Constants.Agents.ContentWriter.Name;
+    public string Description => Constants.Agents.ContentWriter.Description;
 
     public ContentWriterAgent(IChatClient chatClient, ILogger<ContentWriterAgent> logger) 
         : base(chatClient, logger)

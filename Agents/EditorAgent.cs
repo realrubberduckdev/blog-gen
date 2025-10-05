@@ -9,8 +9,8 @@ namespace BlogPostGenerator.Agents;
 /// </summary>
 public class EditorAgent : BaseAgent, IAgent
 {
-    public string Name => "Editor Agent";
-    public string Description => "Reviews and polishes content for quality";
+    public string Name => Constants.Agents.Editor.Name;
+    public string Description => Constants.Agents.Editor.Description;
 
     public EditorAgent(IChatClient chatClient, ILogger<EditorAgent> logger) 
         : base(chatClient, logger)

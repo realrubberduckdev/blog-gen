@@ -4,11 +4,13 @@ using Azure.Identity;
 using System.ClientModel;
 using BlogPostGenerator.Models;
 using BlogPostGenerator.Services;
+using BlogPostGenerator.Services.AgentProvider;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using BlogPostGenerator.Agents;
 
 namespace BlogPostGenerator;
 
@@ -85,12 +87,16 @@ class Program
 
                 if (!string.IsNullOrEmpty(azureApiKey))
                 {
+                    logger.LogInformation("Using API key authentication for Azure OpenAI");
+
                     // Use API key authentication
                     return new AzureOpenAIClient(new Uri(azureEndpoint), new ApiKeyCredential(azureApiKey))
                         .AsChatClient(azureDeploymentName);
                 }
                 else
                 {
+                    logger.LogInformation("Using DefaultAzureCredential for Azure OpenAI authentication");
+
                     // Use Azure CLI credentials (default)
                     return new AzureOpenAIClient(new Uri(azureEndpoint), new DefaultAzureCredential())
                         .AsChatClient(azureDeploymentName);
@@ -107,6 +113,16 @@ class Program
 
             throw new InvalidOperationException("No valid AI configuration found. Please configure Google Gemini, Azure OpenAI, or OpenAI settings.");
         });
+
+        // Register Agents
+        builder.Services.AddTransient<ResearchAgent>();
+        builder.Services.AddTransient<ContentWriterAgent>();
+        builder.Services.AddTransient<EditorAgent>();
+        builder.Services.AddTransient<MarkdownLinterAgent>();
+        builder.Services.AddTransient<SEOAgent>();
+
+        // Register AgentRegistry
+        builder.Services.AddTransient<IAgentRegistry, AgentRegistry>();
 
         // Register the blog generation service
         builder.Services.AddTransient<BlogGenerationService>();

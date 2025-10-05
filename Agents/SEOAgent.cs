@@ -9,8 +9,8 @@ namespace BlogPostGenerator.Agents;
 /// </summary>
 public class SEOAgent : BaseAgent, IAgent
 {
-    public string Name => "SEO Agent";
-    public string Description => "Optimizes content and generates metadata";
+    public string Name => Constants.Agents.SEO.Name;
+    public string Description => Constants.Agents.SEO.Description;
 
     public SEOAgent(IChatClient chatClient, ILogger<SEOAgent> logger) 
         : base(chatClient, logger)
