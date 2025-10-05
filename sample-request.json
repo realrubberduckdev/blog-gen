@@ -1,7 +1,0 @@
-{
-    "Topic": "Avoid Storing Secrets in PowerShell's Command History",
-    "Description": "When using PowerShell scripts to manage secrets like API tokens, passwords, or other sensitive data, you may think you're safe by using environment variables or script parameters like $PAT or $SomePassword to avoid hardcoding secrets in your scripts. However, there's a hidden security risk that many developers overlook: PowerShell's command history feature automatically logs every command you execute, including those containing sensitive parameters. This comprehensive guide will explore this overlooked security vulnerability and provide practical solutions to protect your secrets from being inadvertently stored in command history files.",
-    "TargetAudience": "Software Engineers and DevOps Professionals",
-    "WordCount": 500,
-    "Tone": "Professional and Technical"
-}
