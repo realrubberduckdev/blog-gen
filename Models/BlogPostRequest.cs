@@ -29,4 +29,9 @@ public class BlogPostRequest
     /// The tone of the blog post (e.g., "Professional", "Casual", "Technical")
     /// </summary>
     public string Tone { get; set; } = "Professional";
+    
+    /// <summary>
+    /// The author of the blog post
+    /// </summary>
+    public string Author { get; set; } = string.Empty;
 }

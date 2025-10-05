@@ -1,18 +1,20 @@
-using Microsoft.SemanticKernel;
-using System.ComponentModel;
+using BlogPostGenerator.Framework;
+using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Logging;
 
 namespace BlogPostGenerator.Agents;
 
 /// <summary>
 /// Content Writer Agent responsible for creating the main blog content from research outlines
 /// </summary>
-public class ContentWriterAgent
+public class ContentWriterAgent : BaseAgent, IAgent
 {
-    private readonly Kernel _kernel;
+    public string Name => Constants.Agents.ContentWriter.Name;
+    public string Description => Constants.Agents.ContentWriter.Description;
 
-    public ContentWriterAgent(Kernel kernel)
+    public ContentWriterAgent(IChatClient chatClient, ILogger<ContentWriterAgent> logger)
+        : base(chatClient, logger)
     {
-        _kernel = kernel;
     }
 
     /// <summary>
@@ -21,12 +23,13 @@ public class ContentWriterAgent
     /// <param name="outline">Research outline and structure</param>
     /// <param name="tone">Writing tone (Professional, Casual, Technical, etc.)</param>
     /// <param name="wordCount">Target word count</param>
+    /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Complete blog post content in markdown format</returns>
-    [KernelFunction, Description("Write blog post content based on research outline")]
     public async Task<string> WriteContentAsync(
-        [Description("Research outline and structure")] string outline,
-        [Description("Writing tone (Professional, Casual, Technical, etc.)")] string tone = "Professional",
-        [Description("Target word count")] int wordCount = 800)
+        string outline,
+        string tone = "Professional",
+        int wordCount = 800,
+        CancellationToken cancellationToken = default)
     {
         var prompt = $"""
         You are an expert content writer. Using the following research outline, write a compelling blog post:
@@ -47,7 +50,7 @@ public class ContentWriterAgent
         Focus on creating valuable, engaging content that provides real insights to readers.
         """;
 
-        var result = await _kernel.InvokePromptAsync(prompt);
-        return result.ToString();
+        _logger.LogInformation("Writing content with tone: {Tone}, target words: {WordCount}", tone, wordCount);
+        return await ExecutePromptAsync(prompt, cancellationToken);
     }
 }

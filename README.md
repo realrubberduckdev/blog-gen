@@ -1,6 +1,6 @@
 # 🤖 AI Blog Generator
 
-> Multi-agent AI system that creates high-quality blog posts using Microsoft Semantic Kernel
+> Multi-agent AI system that creates high-quality blog posts using **Microsoft Agent Framework**
 
 ## ✨ Features
 
@@ -12,8 +12,9 @@
 
 ## 🛠️ Tech Stack
 
-- **.NET 9.0** with Microsoft Semantic Kernel
-- **Azure OpenAI** integration
+- **.NET 9.0** with **Microsoft Agent Framework**
+- **Microsoft.Extensions.AI** for AI integration
+- **Google Gemini** / **Azure OpenAI** / **OpenAI** / **Local Model** support
 - **Agent-based architecture** with dependency injection
 
 ## 🚀 Quick Start
@@ -23,8 +24,12 @@
 git clone <repo-url>
 cd blog-gen
 
-# Configure API key
-dotnet user-secrets set "AzureOpenAI:ApiKey" "your-key"
+# Configure API key (choose one)
+# Google Gemini (recommended)
+dotnet user-secrets set "GoogleGemini:ApiKey" "your-gemini-key"
+
+# Azure OpenAI
+dotnet user-secrets set "AzureOpenAI:ApiKey" "your-azure-key"
 
 # Run with JSON file (recommended)
 dotnet run sample-request.json
@@ -36,6 +41,7 @@ dotnet run
 ## 📝 Usage Options
 
 ### 1. JSON File Input (Recommended)
+
 Create a JSON request file for complex blog posts:
 
 ```json
@@ -57,6 +63,7 @@ dotnet run
 ```
 
 ### 2. Command Line Arguments
+
 For simple requests:
 
 ```powershell
@@ -64,6 +71,7 @@ dotnet run --topic "API Security Best Practices" --description "Comprehensive gu
 ```
 
 ### 3. Configuration File
+
 Add defaults to `appsettings.json`:
 
 ```json
@@ -77,11 +85,33 @@ Add defaults to `appsettings.json`:
 ```
 
 ### 4. Interactive Mode
+
 Run without arguments to enter interactive mode.
 
-## ⚙️ Configuration
+## ⚙️ AI Provider Configuration
 
-Edit `appsettings.json` for Azure OpenAI or local model setup:
+The application supports multiple AI providers with **Microsoft Agent Framework**:
+
+### 🚀 Google Gemini (Recommended)
+
+```bash
+dotnet user-secrets set "GoogleGemini:ApiKey" "your-google-ai-api-key"
+```
+
+Configuration in `appsettings.json`:
+
+```json
+{
+  "GoogleGemini": {
+    "ModelId": "gemini-2.5-flash",
+    "ApiKey": ""
+  }
+}
+```
+
+See [GEMINI_SETUP.md](GEMINI_SETUP.md) for detailed setup instructions.
+
+### ☁️ Azure OpenAI
 
 ```json
 {
@@ -92,10 +122,31 @@ Edit `appsettings.json` for Azure OpenAI or local model setup:
 }
 ```
 
+### 🏠 Local Model Configuration (Docker)
+
+```json
+{
+  "LocalModel": {
+    "Endpoint": "http://localhost:11434",
+    "ModelName": "llama3.1:8b",
+    "ApiKey": "",
+    "UseLocal": true
+  }
+}
+```
+
+### 🔄 Provider Priority
+
+The application checks providers in this order:
+
+1. **Google Gemini** (if ApiKey configured)
+2. **Azure OpenAI** (if Endpoint configured)  
+3. **OpenAI** (if ApiKey configured)
+
 ## 📊 Pipeline
 
 **Topic** → **Research** → **Write** → **Edit** → **Lint** → **SEO** → **📝 Blog Post**
 
 ---
 
-*Built with 💙 using Microsoft Semantic Kernel*
+Built with 💙 using Microsoft Agent Framework and Microsoft.Extensions.AI
